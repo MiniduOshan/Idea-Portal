@@ -54,9 +54,16 @@ const ideaSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    creatorEmail: {
+      type: String,
+      default: '',
+      trim: true,
+    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 

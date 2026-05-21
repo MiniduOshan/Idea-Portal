@@ -11,6 +11,7 @@ Express and MongoDB API for the FishiFox Idea Portal.
 ## Run
 
 1. Copy `backend/.env.example` to `backend/.env` and set `MONGODB_URI`.
+1. Create `backend/.env` and set either `MONGO_URI` or `MONGODB_URI`.
 2. Install dependencies:
 
 ```bash
@@ -23,3 +24,4 @@ npm install
 ```bash
 npm run dev
 ```
+The server connects to MongoDB before it starts listening. If the URI is wrong, startup will fail with a connection error.

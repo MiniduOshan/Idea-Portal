@@ -1,9 +1,31 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp } from 'lucide-react';
-import { loadIdeas } from '../lib/ideasApi';
-import { getIdeaLinks } from '../lib/portalData';
+import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { loadIdeas, updateIdea, deleteIdea } from '../lib/ideasApi';
+import { getIdeaLinks, CATEGORIES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+
+const getDisplayName = (email) => {
+  if (!email) return '';
+  const username = email.split('@')[0];
+  return username
+    .split('.')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const isCreator = (idea, userEmail) => {
+  if (!userEmail || !idea) return false;
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
+  if (adminEmail && userEmail.trim().toLowerCase() === adminEmail) return true;
+  if (idea.creatorEmail) {
+    return idea.creatorEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
+  }
+  if (idea.member) {
+    return idea.member.trim().toLowerCase() === getDisplayName(userEmail).trim().toLowerCase();
+  }
+  return false;
+};
 
 const IdeaCard = ({ idea, onOpenDetails }) => (
   <motion.div layout onClick={() => onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 cursor-pointer">
@@ -56,11 +78,214 @@ const IdeaCard = ({ idea, onOpenDetails }) => (
   </motion.div>
 );
 
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 50, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 20, x: '-50%' }} className={`fixed bottom-8 left-1/2 z-50 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 ${type === 'success' ? 'bg-emerald-500/90 backdrop-blur-sm text-white' : 'bg-red-500/90 backdrop-blur-sm text-white'}`}>
+      {type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+      <span className="font-medium">{message}</span>
+    </motion.div>
+  );
+};
+
+const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
+  const [formData, setFormData] = useState(createEmptyIdea());
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (idea) {
+      setFormData(idea);
+      setErrors({});
+    }
+  }, [idea]);
+
+  if (!isOpen || !idea) return null;
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.member.trim()) newErrors.member = 'Member name is required';
+    if (!isValidUrl(formData.liveUrl)) newErrors.liveUrl = 'Invalid URL format';
+    if (!isValidUrl(formData.githubUrl)) newErrors.githubUrl = 'Invalid URL format';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    onUpdate({
+      ...formData,
+      liveUrl: formData.liveUrl.trim(),
+      githubUrl: formData.githubUrl.trim(),
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900/95 p-6 md:p-8 shadow-2xl backdrop-blur-xl relative my-8"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Edit className="w-6 h-6 text-violet-400" />
+            Edit Idea Details
+          </h3>
+          <p className="text-sm text-slate-400 mt-1">Modify your project parameters below</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Project Title</label>
+            <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.title ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} />
+            {errors.title && <p className="mt-1 text-sm text-red-400">{errors.title}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Short Description</label>
+            <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.description ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all resize-none`} />
+            {errors.description && <p className="mt-1 text-sm text-red-400">{errors.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Live Site URL</label>
+              <input type="url" value={formData.liveUrl} onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.liveUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all`} />
+              {errors.liveUrl && <p className="mt-1 text-sm text-red-400">{errors.liveUrl}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Category</label>
+              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 transition-all">
+                {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">GitHub URL</label>
+              <input type="url" value={formData.githubUrl} onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all`} />
+              {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Thumbnail URL</label>
+              <input type="url" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Member Name</label>
+            <input type="text" value={formData.member} onChange={(e) => setFormData({ ...formData, member: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.member ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} />
+            {errors.member && <p className="mt-1 text-sm text-red-400">{errors.member}</p>}
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg hover:shadow-violet-500/30 transition-all cursor-pointer">
+              Save Changes
+            </button>
+            <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all cursor-pointer">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const DeleteConfirmationModal = ({ isOpen, onClose, idea, onConfirm }) => {
+  if (!isOpen || !idea) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl relative"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-400 animate-pulse">
+            <Trash2 className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-bold text-white">Delete Idea</h3>
+          <p className="text-sm text-slate-400 mt-2">
+            Are you sure you want to delete <span className="text-white font-semibold">"{idea.title}"</span>? This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              onConfirm(idea.id);
+              onClose();
+            }}
+            className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-lg hover:shadow-red-600/30 transition-all cursor-pointer"
+          >
+            Delete
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function ProjectDetailsPage() {
   const { ideaId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [ideas, setIdeas] = useState(location.state?.ideas || []);
+
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('fishifox_user') || '');
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const handleUpdateIdea = async (updatedIdea) => {
+    try {
+      const savedIdea = await updateIdea(updatedIdea.id, updatedIdea, userEmail);
+      setIdeas((prev) => prev.map((item) => (item.id === savedIdea.id ? savedIdea : item)));
+      setToast({ message: 'Idea updated successfully!', type: 'success' });
+    } catch {
+      setIdeas((prev) => prev.map((item) => (item.id === updatedIdea.id ? updatedIdea : item)));
+      setToast({ message: 'Saved locally, but backend was unavailable.', type: 'error' });
+    }
+  };
+
+  const handleDeleteConfirm = async (id) => {
+    try {
+      await deleteIdea(id, userEmail);
+      setToast({ message: 'Idea deleted successfully!', type: 'success' });
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
+    } catch {
+      setToast({ message: 'Failed to delete idea from backend.', type: 'error' });
+    }
+  };
 
   useEffect(() => {
     if (ideas.length > 0) return;
@@ -154,7 +379,7 @@ export default function ProjectDetailsPage() {
 
               <div className="flex flex-wrap gap-3">
                 {links.liveUrl ? (
-                  <a href={links.liveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-transform hover:scale-[1.01]">
+                  <a href={links.liveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-transform hover:scale-[1.01] cursor-pointer">
                     <Globe className="h-4 w-4" />
                     View Site
                   </a>
@@ -165,7 +390,33 @@ export default function ProjectDetailsPage() {
                   </span>
                 )}
 
-                {links.githubUrl && <a href={links.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10"><GitBranch className="h-4 w-4" />GitHub</a>}
+                {links.githubUrl && (
+                  <a href={links.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10 cursor-pointer">
+                    <GitBranch className="h-4 w-4" />
+                    GitHub
+                  </a>
+                )}
+
+                {isCreator(idea, userEmail) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-violet-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit Project
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsDeleteOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/20 hover:text-white transition-all cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Project
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -297,6 +548,22 @@ export default function ProjectDetailsPage() {
           )}
         </section>
       </main>
+
+      <AnimatePresence>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isEditOpen && (
+          <EditModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} idea={idea} onUpdate={handleUpdateIdea} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isDeleteOpen && (
+          <DeleteConfirmationModal isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)} idea={idea} onConfirm={handleDeleteConfirm} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

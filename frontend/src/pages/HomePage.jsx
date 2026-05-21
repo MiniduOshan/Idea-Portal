@@ -23,12 +23,37 @@ import {
   AlertCircle,
   Loader2,
   Users,
+  Edit,
+  Trash2,
+  Lock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CATEGORIES, DEMO_IDEAS, createEmptyIdea, isValidUrl } from '../lib/portalData';
-import { loadIdeas, saveIdea } from '../lib/ideasApi';
+import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser } from '../lib/ideasApi';
 
-const Navbar = ({ activeSection, scrollToSection }) => {
+const getDisplayName = (email) => {
+  if (!email) return '';
+  const username = email.split('@')[0];
+  return username
+    .split('.')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const isCreator = (idea, userEmail) => {
+  if (!userEmail || !idea) return false;
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
+  if (adminEmail && userEmail.trim().toLowerCase() === adminEmail) return true;
+  if (idea.creatorEmail) {
+    return idea.creatorEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
+  }
+  if (idea.member) {
+    return idea.member.trim().toLowerCase() === getDisplayName(userEmail).trim().toLowerCase();
+  }
+  return false;
+};
+
+const Navbar = ({ activeSection, scrollToSection, userEmail, onLoginClick, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -60,12 +85,34 @@ const Navbar = ({ activeSection, scrollToSection }) => {
             <span className="text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">FishiFox</span>
           </motion.div>
 
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <button key={link.id} onClick={() => scrollToSection(link.id)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSection === link.id ? 'bg-white/10 text-violet-300' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
-                {link.label}
+          <div className="hidden md:flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              {navLinks.map((link) => (
+                <button key={link.id} onClick={() => scrollToSection(link.id)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSection === link.id ? 'bg-white/10 text-violet-300' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
+                  {link.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-6 w-px bg-white/15" />
+
+            {userEmail ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
+                    {getDisplayName(userEmail).charAt(0)}
+                  </div>
+                  <span className="text-sm font-medium text-slate-200">{getDisplayName(userEmail)}</span>
+                </div>
+                <button onClick={onLogout} className="px-4 py-2 rounded-lg text-sm font-medium border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 transition-all">
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button onClick={onLoginClick} className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all">
+                Login
               </button>
-            ))}
+            )}
           </div>
 
           <button className="md:hidden p-2 text-slate-300" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -77,12 +124,36 @@ const Navbar = ({ activeSection, scrollToSection }) => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden bg-slate-900/95 backdrop-blur-xl border-b border-white/10">
-            <div className="px-4 py-4 space-y-2">
-              {navLinks.map((link) => (
-                <button key={link.id} onClick={() => { scrollToSection(link.id); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white">
-                  {link.label}
-                </button>
-              ))}
+            <div className="px-4 py-4 space-y-4">
+              <div className="space-y-1">
+                {navLinks.map((link) => (
+                  <button key={link.id} onClick={() => { scrollToSection(link.id); setMobileOpen(false); }} className="block w-full text-left px-4 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white text-sm font-medium">
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="h-px bg-white/10 mx-4" />
+
+              <div className="px-4">
+                {userEmail ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 py-1">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
+                        {getDisplayName(userEmail).charAt(0)}
+                      </div>
+                      <span className="text-sm font-medium text-slate-200">{getDisplayName(userEmail)}</span>
+                    </div>
+                    <button onClick={() => { onLogout(); setMobileOpen(false); }} className="w-full py-2.5 rounded-lg text-sm font-semibold border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 transition-all text-center">
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => { onLoginClick(); setMobileOpen(false); }} className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25 text-center">
+                    Login
+                  </button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -166,7 +237,7 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-const IdeaCard = ({ idea, preview = false, onOpenDetails }) => {
+const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -189,6 +260,31 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails }) => {
         {idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-lg"><TrendingUp className="w-3 h-3" />Trending</div>}
         {idea.featured && !idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-violet-500/90 text-white text-xs font-bold backdrop-blur-sm">Featured</div>}
         {!preview && !idea.liveUrl && <div className="absolute bottom-3 left-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">Not deployed yet</div>}
+
+        {!preview && isCreator(idea, userEmail) && (
+          <div className="absolute top-3 left-3 flex gap-2 z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.(idea);
+              }}
+              className="p-2 rounded-lg bg-slate-950/80 hover:bg-violet-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all"
+              title="Edit Idea"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(idea);
+              }}
+              className="p-2 rounded-lg bg-slate-950/80 hover:bg-red-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all"
+              title="Delete Idea"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="p-5">
@@ -236,7 +332,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails }) => {
   );
 };
 
-const FeaturedIdeas = ({ ideas, onOpenDetails }) => {
+const FeaturedIdeas = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const featured = ideas.filter((idea) => idea.featured || idea.trending).slice(0, 3);
   if (featured.length === 0) return null;
 
@@ -257,7 +353,7 @@ const FeaturedIdeas = ({ ideas, onOpenDetails }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map((idea, index) => (
             <motion.div key={idea.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
-              <IdeaCard idea={idea} onOpenDetails={onOpenDetails} />
+              <IdeaCard idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} />
             </motion.div>
           ))}
         </div>
@@ -266,7 +362,7 @@ const FeaturedIdeas = ({ ideas, onOpenDetails }) => {
   );
 };
 
-const IdeasGrid = ({ ideas, onOpenDetails }) => {
+const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('newest');
@@ -350,7 +446,7 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
         ) : filtered.length > 0 ? (
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {filtered.map((idea) => <IdeaCard key={idea.id} idea={idea} onOpenDetails={onOpenDetails} />)}
+              {filtered.map((idea) => <IdeaCard key={idea.id} idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} />)}
             </AnimatePresence>
           </motion.div>
         ) : (
@@ -367,11 +463,20 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
   );
 };
 
-const SubmitForm = ({ onSubmit }) => {
+const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
   const [formData, setFormData] = useState(createEmptyIdea());
   const [preview, setPreview] = useState(false);
   const [toast, setToast] = useState(null);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (userEmail) {
+      setFormData(prev => ({
+        ...prev,
+        member: prev.member || getDisplayName(userEmail)
+      }));
+    }
+  }, [userEmail]);
 
   const validate = () => {
     const newErrors = {};
@@ -412,6 +517,36 @@ const SubmitForm = ({ onSubmit }) => {
     setErrors({});
     setPreview(false);
   };
+
+  if (!userEmail) {
+    return (
+      <section id="submit" className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_var(--tw-gradient-stops))] from-violet-900/20 via-transparent to-transparent" />
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center p-12 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center animate-pulse">
+              <Lightbulb className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">Share Your Vision</h2>
+            <p className="text-slate-400 max-w-xl mx-auto mb-8">
+              Have a groundbreaking project? Log in with your FishiFox email to submit your ideas and get feedback from our innovators.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onLoginClick}
+              className="px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all inline-flex items-center gap-2"
+            >
+              <User className="w-5 h-5" />
+              Log In to Submit
+            </motion.button>
+          </motion.div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="submit" className="py-24 relative overflow-hidden">
@@ -517,6 +652,345 @@ const SubmitForm = ({ onSubmit }) => {
   );
 };
 
+const LoginModal = ({ isOpen, onClose, onLogin, setToast }) => {
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formattedEmail = email.trim().toLowerCase();
+    if (!formattedEmail) {
+      setError('Email is required');
+      return;
+    }
+    if (!/^[a-zA-Z0-9._%+-]+@fishifox\.com$/.test(formattedEmail)) {
+      setError('Please use a valid FishiFox email (e.g. name@fishifox.com)');
+      return;
+    }
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (isRegister) {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+    }
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      if (isRegister) {
+        await registerUser(formattedEmail, password);
+        setToast?.({ message: 'Registration successful! Auto-logging in...', type: 'success' });
+        await loginUser(formattedEmail, password);
+        onLogin(formattedEmail);
+      } else {
+        await loginUser(formattedEmail, password);
+        onLogin(formattedEmail);
+      }
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-8 shadow-2xl backdrop-blur-xl relative"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mx-auto mb-4">
+            <User className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="text-2xl font-bold text-white">FishiFox Portal</h3>
+          <p className="text-sm text-slate-400 mt-1">Access advanced portal features</p>
+        </div>
+
+        <div className="flex bg-slate-950/50 p-1 rounded-xl mb-6 border border-white/5">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(false);
+              setError('');
+            }}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isRegister ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+          >
+            Log In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(true);
+              setError('');
+            }}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isRegister ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">FishiFox Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="username@fishifox.com"
+                disabled={isLoading}
+                className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border ${error && !email ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isLoading}
+                className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border ${error && !password ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`}
+              />
+            </div>
+          </div>
+
+          {isRegister && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                  className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border ${error && password !== confirmPassword ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`}
+                />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-400 flex items-center gap-1.5 pt-1">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3 mt-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isRegister ? (
+              'Sign Up'
+            ) : (
+              'Log In'
+            )}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
+  const [formData, setFormData] = useState(createEmptyIdea());
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (idea) {
+      setFormData(idea);
+      setErrors({});
+    }
+  }, [idea]);
+
+  if (!isOpen || !idea) return null;
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.member.trim()) newErrors.member = 'Member name is required';
+    if (!isValidUrl(formData.liveUrl)) newErrors.liveUrl = 'Invalid URL format';
+    if (!isValidUrl(formData.githubUrl)) newErrors.githubUrl = 'Invalid URL format';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    onUpdate({
+      ...formData,
+      liveUrl: formData.liveUrl.trim(),
+      githubUrl: formData.githubUrl.trim(),
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900/95 p-6 md:p-8 shadow-2xl backdrop-blur-xl relative my-8"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Edit className="w-6 h-6 text-violet-400" />
+            Edit Idea Details
+          </h3>
+          <p className="text-sm text-slate-400 mt-1">Modify your project parameters below</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Project Title</label>
+            <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.title ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} />
+            {errors.title && <p className="mt-1 text-sm text-red-400">{errors.title}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Short Description</label>
+            <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.description ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all resize-none`} />
+            {errors.description && <p className="mt-1 text-sm text-red-400">{errors.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Live Site URL</label>
+              <input type="url" value={formData.liveUrl} onChange={(e) => setFormData({ ...formData, liveUrl: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.liveUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all`} />
+              {errors.liveUrl && <p className="mt-1 text-sm text-red-400">{errors.liveUrl}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Category</label>
+              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 transition-all">
+                {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">GitHub URL</label>
+              <input type="url" value={formData.githubUrl} onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all`} />
+              {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Thumbnail URL</label>
+              <input type="url" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Member Name</label>
+            <input type="text" value={formData.member} onChange={(e) => setFormData({ ...formData, member: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.member ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} />
+            {errors.member && <p className="mt-1 text-sm text-red-400">{errors.member}</p>}
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg hover:shadow-violet-500/30 transition-all">
+              Save Changes
+            </button>
+            <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const DeleteConfirmationModal = ({ isOpen, onClose, idea, onConfirm }) => {
+  if (!isOpen || !idea) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl relative"
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-400 animate-pulse">
+            <Trash2 className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-bold text-white">Delete Idea</h3>
+          <p className="text-sm text-slate-400 mt-2">
+            Are you sure you want to delete <span className="text-white font-semibold">"{idea.title}"</span>? This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              onConfirm(idea.id);
+              onClose();
+            }}
+            className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-lg hover:shadow-red-600/30 transition-all"
+          >
+            Delete
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const About = () => {
   const features = [
     { icon: <Rocket className="w-6 h-6" />, title: 'Innovation First', desc: 'We prioritize groundbreaking ideas that push boundaries and solve real-world problems.' },
@@ -607,7 +1081,7 @@ const Footer = () => (
           ))}
         </div>
 
-        <p className="text-sm text-slate-500">© 2026 FishiFox Idea Portal — Empowering Innovation.</p>
+        <p className="text-sm text-slate-500">© 2026 FishiFox Idea Portal — By Minidu Oshan.</p>
       </div>
     </div>
   </footer>
@@ -638,6 +1112,11 @@ export default function HomePage() {
   const [ideas, setIdeas] = useState(DEMO_IDEAS);
   const [activeSection, setActiveSection] = useState('home');
   const [toast, setToast] = useState(null);
+
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('fishifox_user') || '');
+  const [isLoginOpen, setLoginOpen] = useState(false);
+  const [editingIdea, setEditingIdea] = useState(null);
+  const [deletingIdea, setDeletingIdea] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -685,9 +1164,51 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleLogin = (email) => {
+    localStorage.setItem('fishifox_user', email);
+    setUserEmail(email);
+    setToast({ message: `Logged in as ${email}`, type: 'success' });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('fishifox_user');
+    setUserEmail('');
+    setToast({ message: 'Logged out successfully', type: 'success' });
+  };
+
+  const handleEditClick = (idea) => {
+    setEditingIdea(idea);
+  };
+
+  const handleDeleteClick = (idea) => {
+    setDeletingIdea(idea);
+  };
+
+  const handleUpdateIdea = async (updatedIdea) => {
+    try {
+      const savedIdea = await updateIdea(updatedIdea.id, updatedIdea, userEmail);
+      setIdeas((prev) => prev.map((item) => (item.id === savedIdea.id ? savedIdea : item)));
+      setToast({ message: 'Idea updated successfully!', type: 'success' });
+    } catch {
+      setIdeas((prev) => prev.map((item) => (item.id === updatedIdea.id ? updatedIdea : item)));
+      setToast({ message: 'Saved locally, but backend was unavailable.', type: 'error' });
+    }
+  };
+
+  const handleDeleteConfirm = async (id) => {
+    try {
+      await deleteIdea(id, userEmail);
+      setIdeas((prev) => prev.filter((item) => item.id !== id));
+      setToast({ message: 'Idea deleted successfully!', type: 'success' });
+    } catch {
+      setIdeas((prev) => prev.filter((item) => item.id !== id));
+      setToast({ message: 'Deleted locally, but backend was unavailable.', type: 'error' });
+    }
+  };
+
   const handleSubmit = async (newIdea) => {
     try {
-      const savedIdea = await saveIdea(newIdea);
+      const savedIdea = await saveIdea(newIdea, userEmail);
       setIdeas((previousIdeas) => [savedIdea, ...previousIdeas]);
       setToast({ message: 'Your idea has been published!', type: 'success' });
       setTimeout(() => scrollToSection('ideas'), 500);
@@ -706,17 +1227,35 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-violet-500/30">
-      <Navbar activeSection={activeSection} scrollToSection={scrollToSection} />
+      <Navbar activeSection={activeSection} scrollToSection={scrollToSection} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} onLogout={handleLogout} />
       <Hero scrollToSection={scrollToSection} />
-      <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} />
-      <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} />
-      <SubmitForm onSubmit={handleSubmit} />
+      <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+      <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+      <SubmitForm onSubmit={handleSubmit} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} />
       <About />
       <Footer />
       <BackToTop />
 
       <AnimatePresence>
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isLoginOpen && (
+          <LoginModal isOpen={isLoginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} setToast={setToast} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editingIdea && (
+          <EditModal isOpen={!!editingIdea} onClose={() => setEditingIdea(null)} idea={editingIdea} onUpdate={handleUpdateIdea} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deletingIdea && (
+          <DeleteConfirmationModal isOpen={!!deletingIdea} onClose={() => setDeletingIdea(null)} idea={deletingIdea} onConfirm={handleDeleteConfirm} />
+        )}
       </AnimatePresence>
     </div>
   );
