@@ -54,10 +54,6 @@ fishifox-portal/node_modules/
 fishifox-portal/dist/
 fishifox-portal/.env
 
-# Backend
-backend/node_modules/
-backend/dist/
-backend/.env
 
 # TypeScript build info
 *.tsbuildinfo

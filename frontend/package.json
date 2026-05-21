@@ -7,12 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "backend:dev": "npm --prefix backend run dev",
-    "backend:start": "npm --prefix backend run start"
+    "preview": "vite preview"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "firebase": "^12.13.0",
     "framer-motion": "^12.39.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
