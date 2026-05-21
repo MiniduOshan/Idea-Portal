@@ -84,8 +84,6 @@ export const createEmptyIdea = () => ({
   description: '',
   liveUrl: '',
   githubUrl: '',
-  forkUrl: '',
-  issueUrl: '',
   category: 'AI',
   image: '',
   member: '',
@@ -94,6 +92,4 @@ export const createEmptyIdea = () => ({
 export const getIdeaLinks = (idea) => ({
   liveUrl: idea.liveUrl || idea.url || '',
   githubUrl: idea.githubUrl || '',
-  forkUrl: idea.forkUrl || '',
-  issueUrl: idea.issueUrl || '',
 });

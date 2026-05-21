@@ -2,7 +2,12 @@ import { DEMO_IDEAS, IDEAS_API_URL } from './portalData';
 
 export async function loadIdeas() {
   try {
-    const response = await fetch(IDEAS_API_URL);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const response = await fetch(IDEAS_API_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       throw new Error('Failed to load ideas');
     }

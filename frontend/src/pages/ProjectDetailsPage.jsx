@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Share2, Sparkles, TrendingUp } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp } from 'lucide-react';
 import { loadIdeas } from '../lib/ideasApi';
 import { getIdeaLinks } from '../lib/portalData';
 
 const IdeaCard = ({ idea, onOpenDetails }) => (
-  <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300">
+  <motion.div layout onClick={() => onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 cursor-pointer">
     <div className="relative h-48 overflow-hidden bg-slate-800">
       <img src={idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'} alt={idea.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
@@ -31,11 +31,25 @@ const IdeaCard = ({ idea, onOpenDetails }) => (
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <motion.button type="button" onClick={() => onOpenDetails?.(idea)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-            <Info className="w-4 h-4" />
-            Details
-          </motion.button>
+        <div className="flex items-center">
+          {idea.liveUrl ? (
+            <motion.a
+              href={idea.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all"
+            >
+              <Globe className="w-4 h-4" />
+              Watch Live
+            </motion.a>
+          ) : (
+            <div className="rounded-lg border border-dashed border-white/10 px-3 py-2 text-xs text-slate-500 font-medium">
+              Not Deployed
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -45,9 +59,12 @@ const IdeaCard = ({ idea, onOpenDetails }) => (
 export default function ProjectDetailsPage() {
   const { ideaId } = useParams();
   const navigate = useNavigate();
-  const [ideas, setIdeas] = useState([]);
+  const location = useLocation();
+  const [ideas, setIdeas] = useState(location.state?.ideas || []);
 
   useEffect(() => {
+    if (ideas.length > 0) return;
+
     let isMounted = true;
 
     const loadPortalIdeas = async () => {
@@ -62,7 +79,7 @@ export default function ProjectDetailsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [ideas.length]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -89,7 +106,7 @@ export default function ProjectDetailsPage() {
   }
 
   const links = getIdeaLinks(idea);
-  const linkCount = [links.liveUrl, links.githubUrl, links.forkUrl, links.issueUrl].filter(Boolean).length;
+  const linkCount = [links.liveUrl, links.githubUrl].filter(Boolean).length;
   const deploymentStatus = links.liveUrl ? 'Deployed' : 'Not deployed yet';
   const relatedIdeas = ideas.filter((item) => item.id !== idea.id && item.category === idea.category).slice(0, 3);
 
@@ -149,8 +166,6 @@ export default function ProjectDetailsPage() {
                 )}
 
                 {links.githubUrl && <a href={links.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10"><GitBranch className="h-4 w-4" />GitHub</a>}
-                {links.forkUrl && <a href={links.forkUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10"><Share2 className="h-4 w-4" />Fork</a>}
-                {links.issueUrl && <a href={links.issueUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-white/10"><AlertCircle className="h-4 w-4" />Issues</a>}
               </div>
             </div>
 
@@ -192,8 +207,6 @@ export default function ProjectDetailsPage() {
                 {[
                   { label: 'Deployment', value: links.liveUrl ? 'Live' : 'Pending' },
                   { label: 'Repository', value: links.githubUrl ? 'Connected' : 'Missing' },
-                  { label: 'Fork Access', value: links.forkUrl ? 'Enabled' : 'Not linked' },
-                  { label: 'Issue Tracker', value: links.issueUrl ? 'Enabled' : 'Not linked' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</div>
@@ -213,8 +226,6 @@ export default function ProjectDetailsPage() {
                 {[
                   { label: 'Live Site', href: links.liveUrl, helper: 'Open the deployed product' },
                   { label: 'GitHub', href: links.githubUrl, helper: 'Source code and README' },
-                  { label: 'Fork', href: links.forkUrl, helper: 'Fork or reuse this repo' },
-                  { label: 'Issues', href: links.issueUrl, helper: 'Open issues and tasks' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                     <div className="flex items-center justify-between gap-4">
@@ -257,14 +268,12 @@ export default function ProjectDetailsPage() {
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.28em] text-cyan-300">
                 <AlertCircle className="h-4 w-4" />
-                Issues & Notes
+                Project Notes
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {[
                   { title: 'Deployment status', text: links.liveUrl ? 'Live and accessible from the site button.' : 'Keep this project and add a deploy link later.' },
                   { title: 'Repository setup', text: links.githubUrl ? 'GitHub is attached and ready for collaboration.' : 'Add a GitHub URL to unlock source-level actions.' },
-                  { title: 'Forking workflow', text: links.forkUrl ? 'Fork link is available for reuse and branching.' : 'Add a fork link when the repo is ready to share.' },
-                  { title: 'Issue tracking', text: links.issueUrl ? 'Issues are connected for bug fixes and enhancements.' : 'Connect an issue tracker when the project is open for work.' },
                 ].map((item) => (
                   <div key={item.title} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                     <div className="font-semibold text-white">{item.title}</div>
@@ -282,7 +291,7 @@ export default function ProjectDetailsPage() {
                 Related Projects
               </div>
               <div className="grid gap-6 md:grid-cols-3">
-                {relatedIdeas.map((relatedIdea) => <IdeaCard key={relatedIdea.id} idea={relatedIdea} onOpenDetails={() => navigate(`/ideas/${relatedIdea.id}`)} />)}
+                {relatedIdeas.map((relatedIdea) => <IdeaCard key={relatedIdea.id} idea={relatedIdea} onOpenDetails={() => navigate(`/ideas/${relatedIdea.id}`, { state: { ideas } })} />)}
               </div>
             </div>
           )}

@@ -27,16 +27,6 @@ const ideaSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
-    forkUrl: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    issueUrl: {
-      type: String,
-      default: '',
-      trim: true,
-    },
     category: {
       type: String,
       required: true,

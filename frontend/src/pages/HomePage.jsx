@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -14,13 +14,11 @@ import {
   Mail,
   GitBranch,
   Share2,
-  Info,
   Rocket,
   Lightbulb,
   Zap,
   Code2,
   Palette,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -182,7 +180,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails }) => {
   };
 
   return (
-    <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className={`group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 ${preview ? 'pointer-events-none' : ''}`}>
+    <motion.div layout onClick={() => !preview && onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className={`group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 ${preview ? 'pointer-events-none' : 'cursor-pointer'}`}>
       <div className="relative h-48 overflow-hidden bg-slate-800">
         {!imageLoaded && !imageError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>}
         <img src={imageError ? 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80' : idea.image} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
@@ -211,18 +209,24 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails }) => {
           </div>
 
           {!preview && (
-            <div className="flex items-center gap-2">
-              <motion.button type="button" onClick={() => onOpenDetails?.(idea)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
-                <Info className="w-4 h-4" />
-                Details
-              </motion.button>
-
+            <div className="flex items-center">
               {idea.liveUrl ? (
-                <motion.a href={idea.liveUrl} target="_blank" rel="noopener noreferrer" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-400 hover:text-violet-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" />
+                <motion.a
+                  href={idea.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all"
+                >
+                  <Globe className="w-4 h-4" />
+                  Watch Live
                 </motion.a>
               ) : (
-                <div className="rounded-lg border border-dashed border-white/10 px-3 py-2 text-xs text-slate-500">No host</div>
+                <div className="rounded-lg border border-dashed border-white/10 px-3 py-2 text-xs text-slate-500 font-medium">
+                  Not Deployed
+                </div>
               )}
             </div>
           )}
@@ -376,8 +380,6 @@ const SubmitForm = ({ onSubmit }) => {
     if (!formData.member.trim()) newErrors.member = 'Member name is required';
     if (!isValidUrl(formData.liveUrl)) newErrors.liveUrl = 'Invalid URL format';
     if (!isValidUrl(formData.githubUrl)) newErrors.githubUrl = 'Invalid URL format';
-    if (!isValidUrl(formData.forkUrl)) newErrors.forkUrl = 'Invalid URL format';
-    if (!isValidUrl(formData.issueUrl)) newErrors.issueUrl = 'Invalid URL format';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -393,8 +395,6 @@ const SubmitForm = ({ onSubmit }) => {
       ...formData,
       liveUrl: formData.liveUrl.trim(),
       githubUrl: formData.githubUrl.trim(),
-      forkUrl: formData.forkUrl.trim(),
-      issueUrl: formData.issueUrl.trim(),
       id: Date.now(),
       date: new Date().toISOString().split('T')[0],
       featured: false,
@@ -464,24 +464,10 @@ const SubmitForm = ({ onSubmit }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">GitHub URL</label>
-                  <input type="url" value={formData.githubUrl} onChange={(event) => setFormData({ ...formData, githubUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/..." />
-                  {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Fork URL</label>
-                  <input type="url" value={formData.forkUrl} onChange={(event) => setFormData({ ...formData, forkUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.forkUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/.../fork" />
-                  {errors.forkUrl && <p className="mt-1 text-sm text-red-400">{errors.forkUrl}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Issue URL</label>
-                  <input type="url" value={formData.issueUrl} onChange={(event) => setFormData({ ...formData, issueUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.issueUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/.../issues" />
-                  {errors.issueUrl && <p className="mt-1 text-sm text-red-400">{errors.issueUrl}</p>}
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">GitHub URL</label>
+                <input type="url" value={formData.githubUrl} onChange={(event) => setFormData({ ...formData, githubUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/..." />
+                {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -520,7 +506,7 @@ const SubmitForm = ({ onSubmit }) => {
           <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className={`transition-all duration-500 ${preview ? 'opacity-100' : 'opacity-50'}`}>
             <div className="sticky top-24">
               <div className="text-sm text-slate-400 mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4" />Live Preview</div>
-              <IdeaCard idea={{ ...formData, id: 'preview', date: new Date().toISOString().split('T')[0], featured: false, trending: false, image: formData.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80', liveUrl: formData.liveUrl, githubUrl: formData.githubUrl, forkUrl: formData.forkUrl, issueUrl: formData.issueUrl }} preview />
+              <IdeaCard idea={{ ...formData, id: 'preview', date: new Date().toISOString().split('T')[0], featured: false, trending: false, image: formData.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80', liveUrl: formData.liveUrl, githubUrl: formData.githubUrl }} preview />
             </div>
           </motion.div>
         </div>
@@ -715,7 +701,7 @@ export default function HomePage() {
   };
 
   const handleOpenDetails = (idea) => {
-    navigate(`/ideas/${idea.id}`);
+    navigate(`/ideas/${idea.id}`, { state: { idea, ideas } });
   };
 
   return (

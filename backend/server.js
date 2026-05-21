@@ -17,8 +17,6 @@ const DEMO_IDEAS = [
     url: 'https://example.com/agrimind',
     liveUrl: 'https://example.com/agrimind',
     githubUrl: 'https://github.com/fishifox/agrimind-ai',
-    forkUrl: 'https://github.com/fishifox/agrimind-ai/fork',
-    issueUrl: 'https://github.com/fishifox/agrimind-ai/issues',
     category: 'Agriculture',
     image: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80',
     member: 'Sarah Chen',
@@ -32,8 +30,6 @@ const DEMO_IDEAS = [
     url: 'https://example.com/medflow',
     liveUrl: 'https://example.com/medflow',
     githubUrl: 'https://github.com/fishifox/medflow-pro',
-    forkUrl: 'https://github.com/fishifox/medflow-pro/fork',
-    issueUrl: 'https://github.com/fishifox/medflow-pro/issues',
     category: 'Healthcare',
     image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80',
     member: 'James Wilson',
@@ -47,8 +43,6 @@ const DEMO_IDEAS = [
     url: '',
     liveUrl: '',
     githubUrl: 'https://github.com/fishifox/eduverse-vr',
-    forkUrl: 'https://github.com/fishifox/eduverse-vr/fork',
-    issueUrl: 'https://github.com/fishifox/eduverse-vr/issues',
     category: 'Education',
     image: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80',
     member: 'Maria Garcia',
@@ -62,8 +56,6 @@ const DEMO_IDEAS = [
     url: 'https://example.com/finsight',
     liveUrl: 'https://example.com/finsight',
     githubUrl: 'https://github.com/fishifox/finsight-analytics',
-    forkUrl: '',
-    issueUrl: 'https://github.com/fishifox/finsight-analytics/issues',
     category: 'Finance',
     image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80',
     member: 'David Kim',
@@ -77,8 +69,6 @@ const DEMO_IDEAS = [
     url: 'https://example.com/codesync',
     liveUrl: 'https://example.com/codesync',
     githubUrl: 'https://github.com/fishifox/codesync-ide',
-    forkUrl: 'https://github.com/fishifox/codesync-ide/fork',
-    issueUrl: 'https://github.com/fishifox/codesync-ide/issues',
     category: 'Web Apps',
     image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80',
     member: 'Alex Rivera',
@@ -92,8 +82,6 @@ const DEMO_IDEAS = [
     url: '',
     liveUrl: '',
     githubUrl: 'https://github.com/fishifox/greenroute',
-    forkUrl: '',
-    issueUrl: '',
     category: 'Web Apps',
     image: 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?w=800&q=80',
     member: 'Emma Thompson',
@@ -121,7 +109,7 @@ app.get('/api/ideas', async (_request, response) => {
 
 app.post('/api/ideas', async (request, response) => {
   try {
-    const { title, description, url, liveUrl, githubUrl, forkUrl, issueUrl, category, image, member } = request.body ?? {};
+    const { title, description, url, liveUrl, githubUrl, category, image, member } = request.body ?? {};
 
     if (!title || !description || !category || !member) {
       return response.status(400).json({ message: 'title, description, category, and member are required' });
@@ -133,8 +121,6 @@ app.post('/api/ideas', async (request, response) => {
       url: url || liveUrl || '',
       liveUrl: liveUrl || url || '',
       githubUrl: githubUrl || '',
-      forkUrl: forkUrl || '',
-      issueUrl: issueUrl || '',
       category,
       image: image || '',
       member,
