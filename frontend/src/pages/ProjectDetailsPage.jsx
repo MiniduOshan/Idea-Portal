@@ -125,7 +125,7 @@ export default function ProjectDetailsPage() {
             <span className="text-white">{idea.title || 'Untitled Project'}</span>
           </div>
 
-          <button type="button" onClick={() => navigate('/')} className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20">
+          <button type="button" onClick={() => navigate('/')} className="hidden sm:block rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20">
             Back to list
           </button>
         </div>
@@ -171,7 +171,7 @@ export default function ProjectDetailsPage() {
 
             <div className="relative">
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-cyan-950/30">
-                <div className="relative h-80">
+                <div className="relative h-64 sm:h-80">
                   <img src={idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'} alt={idea.title} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
                 </div>
@@ -234,9 +234,9 @@ export default function ProjectDetailsPage() {
                         <div className="text-sm text-slate-400">{item.helper}</div>
                       </div>
                       {item.href ? (
-                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/10">Open</a>
+                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/10">Open</a>
                       ) : (
-                        <span className="rounded-full border border-dashed border-white/10 px-4 py-2 text-sm text-slate-500">Not added</span>
+                        <span className="shrink-0 rounded-full border border-dashed border-white/10 px-4 py-2 text-sm text-slate-500">Not added</span>
                       )}
                     </div>
                   </div>

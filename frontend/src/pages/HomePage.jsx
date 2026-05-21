@@ -111,7 +111,7 @@ const Hero = ({ scrollToSection }) => (
           <span className="text-sm text-slate-300">Now accepting submissions for 2026</span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight">
           <span className="bg-gradient-to-r from-white via-violet-200 to-fuchsia-200 bg-clip-text text-transparent">FishiFox Idea Portal</span>
         </h1>
 
@@ -254,7 +254,7 @@ const FeaturedIdeas = ({ ideas, onOpenDetails }) => {
           </div>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map((idea, index) => (
             <motion.div key={idea.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
               <IdeaCard idea={idea} onOpenDetails={onOpenDetails} />
@@ -290,7 +290,7 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
     });
 
   return (
-    <section id="ideas" className="py-24 relative">
+    <section id="ideas" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-slate-950" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-fuchsia-900/10 rounded-full blur-[128px]" />
 
@@ -311,15 +311,15 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ideas, members, or tags..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" />
             </div>
 
-            <div className="flex gap-3">
-              <div className="relative">
+            <div className="flex gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:flex-none">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="pl-9 pr-8 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full pl-9 pr-8 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
                   {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
 
-              <select value={sort} onChange={(e) => setSort(e.target.value)} className="px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className="flex-1 md:flex-none px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer">
                 <option value="newest">Newest</option>
                 <option value="a-z">A-Z</option>
               </select>
@@ -336,7 +336,7 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
         </motion.div>
 
         {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div key={item} className="rounded-2xl bg-white/5 border border-white/10 p-4 animate-pulse">
                 <div className="h-48 bg-slate-800/50 rounded-xl mb-4" />
@@ -348,7 +348,7 @@ const IdeasGrid = ({ ideas, onOpenDetails }) => {
             ))}
           </div>
         ) : filtered.length > 0 ? (
-          <motion.div layout className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
               {filtered.map((idea) => <IdeaCard key={idea.id} idea={idea} onOpenDetails={onOpenDetails} />)}
             </AnimatePresence>
@@ -414,7 +414,7 @@ const SubmitForm = ({ onSubmit }) => {
   };
 
   return (
-    <section id="submit" className="py-24 relative">
+    <section id="submit" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-slate-950" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_var(--tw-gradient-stops))] from-violet-900/20 via-transparent to-transparent" />
 
@@ -504,7 +504,7 @@ const SubmitForm = ({ onSubmit }) => {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className={`transition-all duration-500 ${preview ? 'opacity-100' : 'opacity-50'}`}>
-            <div className="sticky top-24">
+            <div className="lg:sticky lg:top-24">
               <div className="text-sm text-slate-400 mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4" />Live Preview</div>
               <IdeaCard idea={{ ...formData, id: 'preview', date: new Date().toISOString().split('T')[0], featured: false, trending: false, image: formData.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80', liveUrl: formData.liveUrl, githubUrl: formData.githubUrl }} preview />
             </div>
@@ -526,7 +526,7 @@ const About = () => {
   ];
 
   return (
-    <section id="about" className="py-24 relative">
+    <section id="about" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-slate-950" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-900/10 rounded-full blur-[150px]" />
 
