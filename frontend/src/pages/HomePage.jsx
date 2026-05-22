@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CATEGORIES, DEMO_IDEAS, STATUSES, createEmptyIdea, isValidUrl, getProjectImage } from '../lib/portalData';
-import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser, getRegisteredUsers } from '../lib/ideasApi';
+import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser, getRegisteredUsers, saveUserToFirestore } from '../lib/ideasApi';
 
 const getDisplayName = (email) => {
   if (!email) return '';
@@ -63,15 +63,31 @@ const isCreator = (idea, userEmail) => {
   return true;
 };
 
-const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
+const CollaboratorSelector = ({ selected = [], onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const allUsers = getRegisteredUsers();
-  
-  const availableUsers = allUsers.filter(
-    (email) => email.toLowerCase() !== userEmail?.toLowerCase()
-  );
-  
+  const [allUsers, setAllUsers] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchUsers = async () => {
+      try {
+        const users = await getRegisteredUsers();
+        if (active) {
+          setAllUsers(users);
+        }
+      } catch (err) {
+        console.error('Failed to load registered users:', err);
+      }
+    };
+    fetchUsers();
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
+  const availableUsers = allUsers;
+
   const filteredUsers = availableUsers.filter((email) =>
     email.toLowerCase().includes(search.toLowerCase()) ||
     getDisplayName(email).toLowerCase().includes(search.toLowerCase())
@@ -265,9 +281,9 @@ const Navbar = ({ activeSection, scrollToSection, userEmail, onLoginClick, onLog
   );
 };
 
-const Hero = ({ scrollToSection, ideas = [] }) => {
+const Hero = ({ scrollToSection, ideas = [], totalMembers }) => {
   const totalProjects = ideas.length;
-  const totalMembers = new Set(ideas.map(i => getCreatorName(i)?.trim()).filter(Boolean)).size;
+  const membersCount = totalMembers !== undefined ? totalMembers : new Set(ideas.map(i => getCreatorName(i)?.trim()).filter(Boolean)).size;
   const totalCategories = new Set(ideas.map(i => i.category).filter(Boolean)).size;
 
   return (
@@ -311,7 +327,7 @@ const Hero = ({ scrollToSection, ideas = [] }) => {
         <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
           {[
             { label: 'Projects Shared', value: totalProjects },
-            { label: 'Team Members', value: totalMembers || 1 },
+            { label: 'Team Members', value: membersCount || 1 },
             { label: 'Categories', value: totalCategories || 1 },
             { label: 'Launched', value: '2026' },
           ].map((stat, i) => (
@@ -1167,7 +1183,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, idea, onConfirm }) => {
   );
 };
 
-const About = ({ ideas = [] }) => {
+const About = ({ ideas = [], totalMembers }) => {
   const features = [
     { icon: <Rocket className="w-6 h-6" />, title: 'Innovation First', desc: 'We prioritize groundbreaking ideas that push boundaries and solve real-world problems.' },
     { icon: <Users className="w-6 h-6" />, title: 'Collaborative Spirit', desc: 'Cross-functional teams work together to refine and launch ideas into reality.' },
@@ -1176,7 +1192,7 @@ const About = ({ ideas = [] }) => {
   ];
 
   const totalProjects = ideas.length;
-  const totalMembers = new Set(ideas.map(i => getCreatorName(i)?.trim()).filter(Boolean)).size;
+  const membersCount = totalMembers !== undefined ? totalMembers : new Set(ideas.map(i => getCreatorName(i)?.trim()).filter(Boolean)).size;
   const completedProjects = ideas.filter(i => i.liveUrl || i.url).length;
   const successRate = ideas.length > 0 ? Math.round((completedProjects / ideas.length) * 100) : 85;
 
@@ -1237,7 +1253,7 @@ const About = ({ ideas = [] }) => {
                 <div className="space-y-4">
                   {[
                     { label: 'Active Projects', value: totalProjects },
-                    { label: 'Team Members', value: totalMembers || 1 },
+                    { label: 'Team Members', value: membersCount || 1 },
                     { label: 'Success Rate', value: `${successRate}%` },
                     { label: 'Avg. Launch Time', value: `${avgLaunchTime} mo` },
                   ].map((stat, index) => (
@@ -1304,14 +1320,50 @@ export default function HomePage() {
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState(null);
   const [deletingIdea, setDeletingIdea] = useState(null);
+  const [totalMembers, setTotalMembers] = useState(1);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadPortalIdeas = async () => {
+      // Auto-save active user session to Firestore users collection
+      const storedUser = localStorage.getItem('fishifox_user');
+      if (storedUser) {
+        try {
+          await saveUserToFirestore(storedUser);
+        } catch (e) {
+          console.error('Failed to auto-save logged-in user on mount:', e);
+        }
+      }
+
       const ideasFromServer = await loadIdeas();
+      let currentIdeas = ideas;
       if (isMounted && Array.isArray(ideasFromServer) && ideasFromServer.length > 0) {
         setIdeas(ideasFromServer);
+        currentIdeas = ideasFromServer;
+      }
+
+      // Load registered users count
+      try {
+        const users = await getRegisteredUsers();
+        if (isMounted) {
+          if (users && users.length > 0) {
+            setTotalMembers(users.length);
+          } else {
+            const uniqueCreatorsCount = new Set(
+              currentIdeas.map(i => getCreatorName(i)?.trim()).filter(Boolean)
+            ).size;
+            setTotalMembers(uniqueCreatorsCount || 1);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load registered users count:', e);
+        if (isMounted) {
+          const uniqueCreatorsCount = new Set(
+            currentIdeas.map(i => getCreatorName(i)?.trim()).filter(Boolean)
+          ).size;
+          setTotalMembers(uniqueCreatorsCount || 1);
+        }
       }
     };
 
@@ -1320,7 +1372,7 @@ export default function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -1351,10 +1403,20 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLogin = (email) => {
+  const handleLogin = async (email) => {
     localStorage.setItem('fishifox_user', email);
     setUserEmail(email);
     setToast({ message: `Logged in as ${email}`, type: 'success' });
+
+    // Update members count after login/registration
+    try {
+      const users = await getRegisteredUsers();
+      if (users && users.length > 0) {
+        setTotalMembers(users.length);
+      }
+    } catch (e) {
+      console.error('Failed to refresh members count after login:', e);
+    }
   };
 
   const handleLogout = () => {
@@ -1415,11 +1477,11 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-violet-500/30">
       <Navbar activeSection={activeSection} scrollToSection={scrollToSection} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} onLogout={handleLogout} />
-      <Hero scrollToSection={scrollToSection} ideas={ideas} />
+      <Hero scrollToSection={scrollToSection} ideas={ideas} totalMembers={totalMembers} />
       <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
       <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
       <SubmitForm onSubmit={handleSubmit} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} />
-      <About ideas={ideas} />
+      <About ideas={ideas} totalMembers={totalMembers} />
       <Footer />
       <BackToTop />
 

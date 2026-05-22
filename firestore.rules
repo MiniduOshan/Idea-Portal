@@ -5,5 +5,9 @@ service cloud.firestore {
       // Anyone can read and write projects/ideas
       allow read, write: if true;
     }
+    match /users/{userId} {
+      // Anyone can read and write user registration records for collaboration list
+      allow read, write: if true;
+    }
   }
 }

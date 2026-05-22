@@ -20,6 +20,9 @@ const MOCK_USERS_KEY = 'fishifox_users';
 
 export function isDemoIdea(idea) {
   if (!idea) return false;
+  if (idea.creatorEmail && idea.creatorEmail.toLowerCase() !== 'owner@fishifox.com') {
+    return false;
+  }
   const demoIds = ['1', '2', '3', '4', '5', '6', 1, 2, 3, 4, 5, 6];
   const demoTitles = [
     'AgriMind AI',
@@ -293,6 +296,7 @@ export async function registerUser(email, password) {
   if (isFirebaseConfigured && auth) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await saveUserToFirestore(email);
       return { message: 'User registered successfully', email: userCredential.user.email };
     } catch (error) {
       // If Firebase Auth provider is not enabled, fall back to local auth
@@ -337,6 +341,7 @@ export async function loginUser(email, password) {
   if (isFirebaseConfigured && auth) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await saveUserToFirestore(email);
       return { message: 'Login successful', email: userCredential.user.email };
     } catch (error) {
       // If Firebase Auth provider is not enabled, fall back to local auth
@@ -367,23 +372,77 @@ export async function loginUser(email, password) {
   }
 }
 
-export function getRegisteredUsers() {
-  try {
-    const mockUsers = getMockUsers();
-    const emails = new Set(mockUsers.map(u => u.email.toLowerCase()));
-    
-    // Also add creators from stored mock ideas
-    const mockIdeas = getMockIdeas();
-    mockIdeas.forEach(idea => {
-      if (idea.creatorEmail) emails.add(idea.creatorEmail.toLowerCase());
-      if (idea.collaborators) {
-        idea.collaborators.forEach(c => emails.add(c.toLowerCase()));
-      }
-    });
-
-    return Array.from(emails);
-  } catch (e) {
-    console.error('getRegisteredUsers failed:', e);
-    return [];
+export async function saveUserToFirestore(email) {
+  if (isFirebaseConfigured && db) {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      await setDoc(doc(db, 'users', normalizedEmail), { email: normalizedEmail, lastLogin: new Date().toISOString() });
+    } catch (e) {
+      console.error('saveUserToFirestore failed:', e);
+    }
   }
+}
+
+export async function getRegisteredUsers() {
+  const emails = new Set();
+
+  // 1. Fetch from Firestore if configured
+  if (isFirebaseConfigured && db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.email) {
+          const emailLower = data.email.toLowerCase().trim();
+          emails.add(emailLower);
+        }
+      });
+    } catch (e) {
+      console.error('Firestore getRegisteredUsers failed to load users collection, falling back to ideas scan:', e);
+      // Fallback: Scan ideas creators/collaborators
+      try {
+        const querySnapshot = await getDocs(collection(db, 'ideas'));
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.creatorEmail) {
+            emails.add(data.creatorEmail.toLowerCase().trim());
+          }
+          if (Array.isArray(data.collaborators)) {
+            data.collaborators.forEach(email => {
+              if (email) {
+                emails.add(email.toLowerCase().trim());
+              }
+            });
+          }
+        });
+      } catch (ideaErr) {
+        console.error('Fallback ideas scan failed:', ideaErr);
+      }
+    }
+  } else {
+    // 2. Fetch from LocalStorage (mock mode / fallback)
+    try {
+      const mockUsers = getMockUsers();
+      mockUsers.forEach(u => {
+        const emailLower = u.email.toLowerCase().trim();
+        emails.add(emailLower);
+      });
+    } catch (e) {
+      console.error('Local getRegisteredUsers failed:', e);
+    }
+  }
+
+  // Always include the current logged-in user from localStorage if present
+  try {
+    const storedUser = localStorage.getItem('fishifox_user');
+    if (storedUser) {
+      emails.add(storedUser.toLowerCase().trim());
+    }
+    // Also make sure owner@fishifox.com is always present
+    emails.add('owner@fishifox.com');
+  } catch {
+    // Ignore localStorage failures
+  }
+
+  return Array.from(emails);
 }

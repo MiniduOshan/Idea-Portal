@@ -45,15 +45,31 @@ const isCreator = (idea, userEmail) => {
   return true;
 };
 
-const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
+const CollaboratorSelector = ({ selected = [], onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const allUsers = getRegisteredUsers();
-  
-  const availableUsers = allUsers.filter(
-    (email) => email.toLowerCase() !== userEmail?.toLowerCase()
-  );
-  
+  const [allUsers, setAllUsers] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchUsers = async () => {
+      try {
+        const users = await getRegisteredUsers();
+        if (active) {
+          setAllUsers(users);
+        }
+      } catch (err) {
+        console.error('Failed to load registered users:', err);
+      }
+    };
+    fetchUsers();
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
+  const availableUsers = allUsers;
+
   const filteredUsers = availableUsers.filter((email) =>
     email.toLowerCase().includes(search.toLowerCase()) ||
     getDisplayName(email).toLowerCase().includes(search.toLowerCase())
