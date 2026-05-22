@@ -747,7 +747,7 @@ const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Banner Image URL</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Banner Image URL(optional)</label>
                   <input type="url" value={formData.image} onChange={(event) => setFormData({ ...formData, image: event.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="https://images.unsplash.com..." />
                 </div>
               </div>
@@ -1260,13 +1260,6 @@ const Footer = () => (
   <footer className="relative py-12 border-t border-white/10 bg-slate-950">
     <div className="max-w-7xl mx-auto px-4">
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">FishiFox</span>
-        </div>
-
         <div className="flex items-center gap-4">
           {[GitBranch, Share2, Users, Mail].map((Icon, index) => (
             <motion.a key={index} href="#" whileHover={{ scale: 1.1, y: -2 }} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
