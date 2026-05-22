@@ -201,11 +201,23 @@ export async function registerUser(email, password) {
     throw new Error('Password must be at least 6 characters long');
   }
 
-  if (isFirebaseConfigured) {
+  if (isFirebaseConfigured && auth) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       return { message: 'User registered successfully', email: userCredential.user.email };
     } catch (error) {
+      // If Firebase Auth provider is not enabled, fall back to local auth
+      if (error.code === 'auth/configuration-not-found' || error.code === 'auth/admin-restricted-operation') {
+        console.warn('Firebase Auth provider not enabled. Falling back to local auth.');
+        const mockUsers = getMockUsers();
+        const exists = mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
+        if (exists) {
+          throw new Error('This email is already registered.');
+        }
+        mockUsers.push({ email: email.toLowerCase(), password });
+        saveMockUsers(mockUsers);
+        return { message: 'User registered successfully (local mode)', email };
+      }
       let message = error.message;
       if (error.code === 'auth/email-already-in-use') {
         message = 'This email is already registered.';
@@ -233,11 +245,21 @@ export async function loginUser(email, password) {
     throw new Error('Email and password are required');
   }
 
-  if (isFirebaseConfigured) {
+  if (isFirebaseConfigured && auth) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return { message: 'Login successful', email: userCredential.user.email };
     } catch (error) {
+      // If Firebase Auth provider is not enabled, fall back to local auth
+      if (error.code === 'auth/configuration-not-found' || error.code === 'auth/admin-restricted-operation') {
+        console.warn('Firebase Auth provider not enabled. Falling back to local auth.');
+        const mockUsers = getMockUsers();
+        const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+        if (!user) {
+          throw new Error('Invalid email or password');
+        }
+        return { message: 'Login successful (local mode)', email: user.email };
+      }
       let message = 'Invalid email or password';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         message = 'Invalid email or password';
