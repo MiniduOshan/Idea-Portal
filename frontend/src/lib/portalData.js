@@ -15,7 +15,11 @@ export const getProjectImage = (idea, imageError = false) => {
     return (idea?.liveUrl || idea?.url) ? DEFAULT_LIVE_URL_IMAGE : DEFAULT_NO_LIVE_URL_IMAGE;
   }
   if (!idea?.image) {
-    return (idea?.liveUrl || idea?.url) ? DEFAULT_LIVE_URL_IMAGE : DEFAULT_NO_LIVE_URL_IMAGE;
+    const liveUrl = idea?.liveUrl || idea?.url;
+    if (liveUrl) {
+      return `https://s0.wp.com/mshots/v1/${encodeURIComponent(liveUrl)}?w=800`;
+    }
+    return DEFAULT_NO_LIVE_URL_IMAGE;
   }
   return idea.image;
 };
