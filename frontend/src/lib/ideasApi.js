@@ -18,6 +18,20 @@ const MOCK_USERS_KEY = 'fishifox_users';
 
 
 
+export function isDemoIdea(idea) {
+  if (!idea) return false;
+  const demoIds = ['1', '2', '3', '4', '5', '6', 1, 2, 3, 4, 5, 6];
+  const demoTitles = [
+    'AgriMind AI',
+    'MedFlow Pro',
+    'EduVerse VR',
+    'FinSight Analytics',
+    'CodeSync IDE',
+    'GreenRoute'
+  ];
+  return demoIds.includes(idea.id) || demoTitles.includes(idea.title);
+}
+
 // --- LocalStorage Fallback Helpers ---
 
 function mergeWithDemoIdeas(ideas) {
@@ -41,7 +55,10 @@ function getMockIdeas() {
   }
   try {
     const parsedIdeas = JSON.parse(local);
-    const normalizedIdeas = mergeWithDemoIdeas(parsedIdeas);
+    const filteredIdeas = Array.isArray(parsedIdeas)
+      ? parsedIdeas.filter((idea) => !isDemoIdea(idea))
+      : [];
+    const normalizedIdeas = mergeWithDemoIdeas(filteredIdeas);
     if (normalizedIdeas.length !== (Array.isArray(parsedIdeas) ? parsedIdeas.length : 0)) {
       saveMockIdeas(normalizedIdeas);
     }
@@ -83,11 +100,14 @@ export async function loadIdeas() {
       const ideas = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        ideas.push({
+        const idea = {
           ...data,
           likes: Array.isArray(data.likes) ? data.likes : [],
           id: docSnap.id
-        });
+        };
+        if (!isDemoIdea(idea)) {
+          ideas.push(idea);
+        }
       });
 
       // Add any missing DEMO_IDEAS locally if they don't exist in Firestore.

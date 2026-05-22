@@ -1,94 +1,24 @@
-export const DEMO_IDEAS = [
-  {
-    id: 1,
-    title: 'AgriMind AI',
-    description: 'AI-powered crop monitoring and yield prediction platform for small-scale farmers using satellite imagery and IoT sensors.',
-    url: 'https://example.com/agrimind',
-    category: 'Agriculture',
-    image: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80',
-    member: 'Sarah Chen',
-    date: '2026-05-18',
-    featured: true,
-    trending: true,
-    status: 'In Progress (Working)',
-    collaborators: ['developer@fishifox.com', 'designer@fishifox.com']
-  },
-  {
-    id: 2,
-    title: 'MedFlow Pro',
-    description: 'Streamlined patient management system with AI triage, automated scheduling, and real-time health analytics dashboard.',
-    url: 'https://example.com/medflow',
-    category: 'Healthcare',
-    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80',
-    member: 'James Wilson',
-    date: '2026-05-15',
-    featured: true,
-    trending: false,
-    status: 'Testing Phase',
-    collaborators: ['qa@fishifox.com']
-  },
-  {
-    id: 3,
-    title: 'EduVerse VR',
-    description: 'Immersive virtual reality classrooms for remote learning with interactive 3D models and real-time collaboration tools.',
-    url: 'https://example.com/eduverse',
-    category: 'Education',
-    image: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80',
-    member: 'Maria Garcia',
-    date: '2026-05-20',
-    featured: false,
-    trending: true,
-    status: 'Requirements Phase',
-    collaborators: ['architect@fishifox.com']
-  },
-  {
-    id: 4,
-    title: 'FinSight Analytics',
-    description: 'Real-time financial market sentiment analysis using NLP on social media, news, and earnings calls for retail investors.',
-    url: 'https://example.com/finsight',
-    category: 'Finance',
-    image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80',
-    member: 'David Kim',
-    date: '2026-05-12',
-    featured: true,
-    trending: false,
-    status: 'Completed (Launched)',
-    collaborators: ['lead-dev@fishifox.com', 'pm@fishifox.com']
-  },
-  {
-    id: 5,
-    title: 'CodeSync IDE',
-    description: 'Browser-based collaborative IDE with real-time pair programming, AI code review, and instant deployment pipelines.',
-    url: 'https://example.com/codesync',
-    category: 'Web Apps',
-    image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80',
-    member: 'Alex Rivera',
-    date: '2026-05-19',
-    featured: false,
-    trending: true,
-    status: 'In Progress (Working)',
-    collaborators: []
-  },
-  {
-    id: 6,
-    title: 'GreenRoute',
-    description: 'Carbon footprint tracking app for logistics companies with route optimization to minimize environmental impact.',
-    url: 'https://example.com/greenroute',
-    category: 'Web Apps',
-    image: 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?w=800&q=80',
-    member: 'Emma Thompson',
-    date: '2026-05-10',
-    featured: false,
-    trending: false,
-    status: 'Completed (Launched)',
-    collaborators: []
-  },
-];
+export const DEMO_IDEAS = [];
+
 
 export const CATEGORIES = ['All', 'AI', 'Agriculture', 'Healthcare', 'Education', 'Finance', 'Web Apps'];
 export const STATUSES = ['Requirements Phase', 'In Progress (Working)', 'Testing Phase', 'Completed (Launched)'];
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 export const IDEAS_API_URL = `${API_BASE_URL.replace(/\/$/, '')}/api/ideas`;
+
+export const DEFAULT_NO_LIVE_URL_IMAGE = 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&q=80'; // Website design/template workspace
+export const DEFAULT_LIVE_URL_IMAGE = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80'; // Tech/web dashboard
+export const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'; // Gradient fallback
+
+export const getProjectImage = (idea, imageError = false) => {
+  if (imageError) {
+    return (idea?.liveUrl || idea?.url) ? DEFAULT_LIVE_URL_IMAGE : DEFAULT_NO_LIVE_URL_IMAGE;
+  }
+  if (!idea?.image) {
+    return (idea?.liveUrl || idea?.url) ? DEFAULT_LIVE_URL_IMAGE : DEFAULT_NO_LIVE_URL_IMAGE;
+  }
+  return idea.image;
+};
 
 export const isValidUrl = (value) => !value || /^https?:\/\/.+/.test(value);
 

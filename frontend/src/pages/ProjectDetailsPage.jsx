@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2, Users, Loader2 } from 'lucide-react';
 import { loadIdeas, updateIdea, deleteIdea, getRegisteredUsers } from '../lib/ideasApi';
-import { getIdeaLinks, CATEGORIES, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+import { getIdeaLinks, CATEGORIES, STATUSES, createEmptyIdea, isValidUrl, getProjectImage } from '../lib/portalData';
 
 const STATUS_COLORS = {
   'Requirements Phase': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
@@ -138,7 +138,7 @@ const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
   );
 };
 
-const IdeaCard = ({ idea, onOpenDetails, userEmail }) => {
+const IdeaCard = ({ idea, onOpenDetails }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -155,7 +155,7 @@ const IdeaCard = ({ idea, onOpenDetails, userEmail }) => {
     <motion.div layout onClick={() => onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 cursor-pointer">
       <div className="relative h-48 overflow-hidden bg-slate-800">
         {!imageLoaded && !imageError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>}
-        <img src={imageError ? 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80' : (idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80')} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
+        <img src={getProjectImage(idea, imageError)} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
         {idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-lg"><TrendingUp className="w-3 h-3" />Trending</div>}
         {idea.featured && !idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-violet-500/90 text-white text-xs font-bold backdrop-blur-sm">Featured</div>}
@@ -440,6 +440,13 @@ export default function ProjectDetailsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [heroImageError, setHeroImageError] = useState(false);
+  const [prevIdeaId, setPrevIdeaId] = useState(ideaId);
+
+  if (ideaId !== prevIdeaId) {
+    setPrevIdeaId(ideaId);
+    setHeroImageError(false);
+  }
 
   const handleUpdateIdea = async (updatedIdea) => {
     try {
@@ -605,7 +612,7 @@ export default function ProjectDetailsPage() {
             <div className="relative">
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl shadow-cyan-950/30">
                 <div className="relative h-64 sm:h-80">
-                  <img src={idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'} alt={idea.title} className="h-full w-full object-cover" />
+                  <img src={getProjectImage(idea, heroImageError)} alt={idea.title} onError={() => setHeroImageError(true)} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
                 </div>
 

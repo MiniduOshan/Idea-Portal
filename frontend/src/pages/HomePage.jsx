@@ -27,7 +27,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CATEGORIES, DEMO_IDEAS, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+import { CATEGORIES, DEMO_IDEAS, STATUSES, createEmptyIdea, isValidUrl, getProjectImage } from '../lib/portalData';
 import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser, getRegisteredUsers } from '../lib/ideasApi';
 
 const getDisplayName = (email) => {
@@ -369,7 +369,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
     <motion.div layout onClick={() => !preview && onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className={`group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 ${preview ? 'pointer-events-none' : 'cursor-pointer'}`}>
       <div className="relative h-48 overflow-hidden bg-slate-800">
         {!imageLoaded && !imageError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>}
-        <img src={imageError ? 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80' : idea.image} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
+        <img src={getProjectImage(idea, imageError)} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
  
         {idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-lg"><TrendingUp className="w-3 h-3" />Trending</div>}
