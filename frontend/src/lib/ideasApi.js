@@ -194,7 +194,9 @@ export async function updateIdea(id, idea, userEmail) {
     category: idea.category,
     image: idea.image || '',
     member: idea.member,
-    creatorEmail: idea.creatorEmail ? idea.creatorEmail.toLowerCase() : (userEmail ? userEmail.toLowerCase() : ''),
+    creatorEmail: (!idea.creatorEmail || idea.creatorEmail.toLowerCase() === 'owner@fishifox.com') && userEmail
+      ? userEmail.toLowerCase()
+      : (idea.creatorEmail ? idea.creatorEmail.toLowerCase() : (userEmail ? userEmail.toLowerCase() : '')),
     likes: Array.isArray(idea.likes) ? idea.likes : [],
     featured: idea.featured || false,
     trending: idea.trending || false,

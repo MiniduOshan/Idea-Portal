@@ -21,17 +21,28 @@ const getDisplayName = (email) => {
     .join(' ');
 };
 
+const isDemoName = (name) => {
+  const demoNames = ['Sarah Chen', 'James Wilson', 'Maria Garcia', 'David Kim', 'Alex Rivera', 'Emma Thompson'];
+  return demoNames.includes(name);
+};
+
+const getCreatorName = (idea) => {
+  if (!idea) return 'Anonymous';
+  if (idea.creatorEmail && idea.creatorEmail.toLowerCase() !== 'owner@fishifox.com') {
+    return getDisplayName(idea.creatorEmail);
+  }
+  return idea.member || 'Anonymous';
+};
+
 const isCreator = (idea, userEmail) => {
   if (!userEmail || !idea) return false;
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
   if (adminEmail && userEmail.trim().toLowerCase() === adminEmail) return true;
-  if (idea.creatorEmail) {
+  if (idea.creatorEmail && idea.creatorEmail.trim().toLowerCase() !== 'owner@fishifox.com') {
     return idea.creatorEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
   }
-  if (idea.member) {
-    return idea.member.trim().toLowerCase() === getDisplayName(userEmail).trim().toLowerCase();
-  }
-  return false;
+  // For demo ideas, allow any logged-in user to edit/adopt them
+  return true;
 };
 
 const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
@@ -44,7 +55,8 @@ const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
   );
   
   const filteredUsers = availableUsers.filter((email) =>
-    email.toLowerCase().includes(search.toLowerCase())
+    email.toLowerCase().includes(search.toLowerCase()) ||
+    getDisplayName(email).toLowerCase().includes(search.toLowerCase())
   );
 
   const toggleUser = (email) => {
@@ -67,7 +79,7 @@ const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
             key={email}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30"
           >
-            {email}
+            {getDisplayName(email)}
             <button
               type="button"
               onClick={() => toggleUser(email)}
@@ -108,7 +120,10 @@ const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
                     onClick={() => toggleUser(email)}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 text-left transition-colors cursor-pointer"
                   >
-                    <span className="text-sm text-slate-300 truncate pr-2">{email}</span>
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="text-sm text-slate-200 font-medium truncate">{getDisplayName(email)}</span>
+                      <span className="text-xs text-slate-500 truncate">{email}</span>
+                    </div>
                     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${isChecked ? 'bg-violet-500 border-violet-500 text-white' : 'border-white/20 text-transparent'}`}>
                       <CheckCircle2 className="w-2.5 h-2.5" />
                     </div>
@@ -238,8 +253,15 @@ const EditModal = ({ isOpen, onClose, idea, onUpdate, userEmail }) => {
 
   useEffect(() => {
     if (idea) {
+      const isCustomCreator = idea.creatorEmail && idea.creatorEmail.toLowerCase() !== 'owner@fishifox.com';
+      const cleanMember = (isCustomCreator && (!idea.member || isDemoName(idea.member)))
+        ? getDisplayName(idea.creatorEmail)
+        : (idea.member || '');
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData(idea);
+      setFormData({
+        ...idea,
+        member: cleanMember
+      });
       setErrors({});
     }
   }, [idea]);
@@ -502,7 +524,7 @@ export default function ProjectDetailsPage() {
           </button>
 
           <div className="hidden items-center gap-2 text-xs font-medium text-slate-400 md:flex">
-            <span>{idea.member || 'Anonymous'}</span>
+            <span>{getCreatorName(idea)}</span>
             <span>/</span>
             <span className="text-white">{idea.title || 'Untitled Project'}</span>
           </div>
@@ -589,7 +611,7 @@ export default function ProjectDetailsPage() {
 
                 <div className="grid grid-cols-2 gap-px bg-white/10">
                   {[
-                    { label: 'Owner', value: idea.member || 'Anonymous' },
+                    { label: 'Owner', value: getCreatorName(idea) },
                     { label: 'Date', value: idea.date || '-' },
                     { label: 'Status', value: idea.status || 'Requirements Phase', isStatus: true },
                     { label: 'Likes', value: String(likes.length) },
@@ -647,10 +669,10 @@ export default function ProjectDetailsPage() {
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 border border-white/5">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
-                        {idea.member ? idea.member.charAt(0) : (idea.creatorEmail ? idea.creatorEmail.charAt(0) : '?')}
+                        {getCreatorName(idea).charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-white truncate">{idea.member || getDisplayName(idea.creatorEmail) || 'Project Creator'}</div>
+                        <div className="font-semibold text-white truncate">{getCreatorName(idea)}</div>
                         <div className="text-xs text-slate-400 truncate">{idea.creatorEmail || 'Creator'}</div>
                       </div>
                     </div>
