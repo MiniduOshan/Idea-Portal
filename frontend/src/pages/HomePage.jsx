@@ -29,8 +29,8 @@ import {
   Heart,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CATEGORIES, DEMO_IDEAS, createEmptyIdea, isValidUrl } from '../lib/portalData';
-import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser } from '../lib/ideasApi';
+import { CATEGORIES, DEMO_IDEAS, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+import { loadIdeas, saveIdea, updateIdea, deleteIdea, registerUser, loginUser, getRegisteredUsers } from '../lib/ideasApi';
 
 const getDisplayName = (email) => {
   if (!email) return '';
@@ -54,6 +54,95 @@ const isCreator = (idea, userEmail) => {
   return false;
 };
 
+const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const allUsers = getRegisteredUsers();
+  
+  const availableUsers = allUsers.filter(
+    (email) => email.toLowerCase() !== userEmail?.toLowerCase()
+  );
+  
+  const filteredUsers = availableUsers.filter((email) =>
+    email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleUser = (email) => {
+    const emailLower = email.toLowerCase();
+    if (selected.includes(emailLower)) {
+      onChange(selected.filter((e) => e !== emailLower));
+    } else {
+      onChange([...selected, emailLower]);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-slate-800/50 border border-white/10 min-h-[46px] w-full items-center">
+        {selected.length === 0 && (
+          <span className="text-slate-500 text-sm ml-1.5">Select team collaborators...</span>
+        )}
+        {selected.map((email) => (
+          <span
+            key={email}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30"
+          >
+            {email}
+            <button
+              type="button"
+              onClick={() => toggleUser(email)}
+              className="text-violet-400 hover:text-violet-200 transition-colors focus:outline-none"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="ml-auto px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+        >
+          {isOpen ? 'Close' : 'Browse'}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-2 p-3 rounded-2xl border border-white/10 bg-slate-900 shadow-2xl backdrop-blur-xl z-20 space-y-2 max-h-60 overflow-y-auto">
+          <input
+            type="text"
+            placeholder="Search registered users..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500/50"
+          />
+          <div className="space-y-1">
+            {filteredUsers.length === 0 ? (
+              <div className="text-xs text-slate-500 p-2 text-center">No registered users found</div>
+            ) : (
+              filteredUsers.map((email) => {
+                const isChecked = selected.includes(email.toLowerCase());
+                return (
+                  <button
+                    key={email}
+                    type="button"
+                    onClick={() => toggleUser(email)}
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 text-left transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm text-slate-300 truncate pr-2">{email}</span>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${isChecked ? 'bg-violet-500 border-violet-500 text-white' : 'border-white/20 text-transparent'}`}>
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Navbar = ({ activeSection, scrollToSection, userEmail, onLoginClick, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -66,7 +155,7 @@ const Navbar = ({ activeSection, scrollToSection, userEmail, onLoginClick, onLog
 
   const navLinks = [
     { id: 'home', label: 'Home' },
-    { id: 'ideas', label: 'Ideas' },
+    { id: 'ideas', label: 'Projects' },
     { id: 'submit', label: 'Submit' },
     { id: 'about', label: 'About' },
   ];
@@ -163,58 +252,63 @@ const Navbar = ({ activeSection, scrollToSection, userEmail, onLoginClick, onLog
   );
 };
 
-const Hero = ({ scrollToSection }) => (
-  <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-    <div className="absolute inset-0 bg-slate-950">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/40 via-slate-950 to-slate-950" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[128px] animate-pulse" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[128px] animate-pulse delay-1000" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px]" />
-    </div>
+const Hero = ({ scrollToSection, ideas = [] }) => {
+  const totalProjects = ideas.length;
+  const totalMembers = new Set(ideas.map(i => i.member?.trim()).filter(Boolean)).size;
+  const totalCategories = new Set(ideas.map(i => i.category).filter(Boolean)).size;
 
-    <motion.div animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-32 left-20 w-16 h-16 border border-violet-500/30 rounded-2xl backdrop-blur-sm hidden lg:block" />
-    <motion.div animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }} transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-32 right-20 w-20 h-20 border border-fuchsia-500/30 rounded-full backdrop-blur-sm hidden lg:block" />
-    <motion.div animate={{ y: [0, -15, 0], x: [0, 10, 0] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-1/3 right-1/4 w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-lg backdrop-blur-sm hidden lg:block" />
+  return (
+    <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+      <div className="absolute inset-0 bg-slate-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/40 via-slate-950 to-slate-950" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[128px] animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[128px] animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px]" />
+      </div>
 
-    <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
-      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-8">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-sm text-slate-300">Now accepting submissions for 2026</span>
-        </div>
+      <motion.div animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-32 left-20 w-16 h-16 border border-violet-500/30 rounded-2xl backdrop-blur-sm hidden lg:block" />
+      <motion.div animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }} transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-32 right-20 w-20 h-20 border border-fuchsia-500/30 rounded-full backdrop-blur-sm hidden lg:block" />
+      <motion.div animate={{ y: [0, -15, 0], x: [0, 10, 0] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-1/3 right-1/4 w-12 h-12 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-lg backdrop-blur-sm hidden lg:block" />
 
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight">
-          <span className="bg-gradient-to-r from-white via-violet-200 to-fuchsia-200 bg-clip-text text-transparent">FishiFox Idea Portal</span>
-        </h1>
-
-        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">A collaborative platform where FishiFox members share innovative ideas, startups, websites, and creative projects.</p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => scrollToSection('ideas')} className="px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-shadow flex items-center justify-center gap-2">
-            <Rocket className="w-5 h-5" />
-            Explore Ideas
-          </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => scrollToSection('submit')} className="px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
-            <Plus className="w-5 h-5" />
-            Submit Idea
-          </motion.button>
-        </div>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-        {[
-          { label: 'Ideas Shared', value: '24+' },
-          { label: 'Team Members', value: '12' },
-          { label: 'Categories', value: '6' },
-          { label: 'Launched', value: '2026' },
-        ].map((stat, i) => (
-          <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-            <div className="text-sm text-slate-400">{stat.label}</div>
+      <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-8">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-sm text-slate-300">Now accepting submissions for 2026</span>
           </div>
-        ))}
-      </motion.div>
-    </div>
+
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight">
+            <span className="bg-gradient-to-r from-white via-violet-200 to-fuchsia-200 bg-clip-text text-transparent">FishiFox Project Portal</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">A collaborative platform where FishiFox members share innovative ideas, startups, websites, and creative projects.</p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => scrollToSection('ideas')} className="px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-shadow flex items-center justify-center gap-2">
+              <Rocket className="w-5 h-5" />
+              Explore Projects
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => scrollToSection('submit')} className="px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
+              <Plus className="w-5 h-5" />
+              Submit Project
+            </motion.button>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }} className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+          {[
+            { label: 'Projects Shared', value: totalProjects },
+            { label: 'Team Members', value: totalMembers || 1 },
+            { label: 'Categories', value: totalCategories || 1 },
+            { label: 'Launched', value: '2026' },
+          ].map((stat, i) => (
+            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+              <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+              <div className="text-sm text-slate-400">{stat.label}</div>
+            </div>
+          ))}
+        </motion.div>
+      </div>
 
     <motion.div animate={{ y: [0, 10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="absolute bottom-8 left-1/2 -translate-x-1/2 text-slate-500">
       <div className="w-6 h-10 rounded-full border-2 border-slate-600 flex justify-center pt-2">
@@ -222,7 +316,8 @@ const Hero = ({ scrollToSection }) => (
       </div>
     </motion.div>
   </section>
-);
+  );
+};
 
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -240,7 +335,7 @@ const Toast = ({ message, type, onClose }) => {
 const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onDelete, onLike }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-
+ 
   const categoryColors = {
     AI: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     Agriculture: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
@@ -250,20 +345,27 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
     'Web Apps': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
   };
 
+  const statusColors = {
+    'Requirements Phase': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    'In Progress (Working)': 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+    'Testing Phase': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    'Completed (Launched)': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  };
+ 
   const likes = idea.likes || [];
   const hasLiked = userEmail && likes.includes(userEmail.toLowerCase());
-
+ 
   return (
     <motion.div layout onClick={() => !preview && onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className={`group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 ${preview ? 'pointer-events-none' : 'cursor-pointer'}`}>
       <div className="relative h-48 overflow-hidden bg-slate-800">
         {!imageLoaded && !imageError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>}
         <img src={imageError ? 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80' : idea.image} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-
+ 
         {idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-lg"><TrendingUp className="w-3 h-3" />Trending</div>}
         {idea.featured && !idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-violet-500/90 text-white text-xs font-bold backdrop-blur-sm">Featured</div>}
         {!preview && !idea.liveUrl && <div className="absolute bottom-3 left-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">Not deployed yet</div>}
-
+ 
         {!preview && isCreator(idea, userEmail) && (
           <div className="absolute top-3 left-3 flex gap-2 z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
             <button
@@ -271,8 +373,8 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
                 e.stopPropagation();
                 onEdit?.(idea);
               }}
-              className="p-2 rounded-lg bg-slate-950/80 hover:bg-violet-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all"
-              title="Edit Idea"
+              className="p-2 rounded-lg bg-slate-950/80 hover:bg-violet-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all cursor-pointer"
+              title="Edit Project"
             >
               <Edit className="w-4 h-4" />
             </button>
@@ -281,18 +383,21 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
                 e.stopPropagation();
                 onDelete?.(idea);
               }}
-              className="p-2 rounded-lg bg-slate-950/80 hover:bg-red-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all"
-              title="Delete Idea"
+              className="p-2 rounded-lg bg-slate-950/80 hover:bg-red-600 text-slate-300 hover:text-white backdrop-blur-sm transition-all cursor-pointer"
+              title="Delete Project"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
-
+ 
       <div className="p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${categoryColors[idea.category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.category}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${categoryColors[idea.category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.category}</span>
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[idea.status] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.status || 'Requirements Phase'}</span>
+          </div>
           {!preview && (
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -301,16 +406,41 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
                 e.stopPropagation();
                 onLike?.(idea);
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
             >
               <Heart className={`w-3.5 h-3.5 transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400 group-hover:text-rose-400'}`} />
               <span>{likes.length}</span>
             </motion.button>
           )}
         </div>
-
+ 
         <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-violet-300 transition-colors">{idea.title || 'Untitled Project'}</h3>
         <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{idea.description || 'No description provided...'}</p>
+ 
+        {idea.collaborators && idea.collaborators.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs text-slate-500 font-medium">Team:</span>
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {idea.collaborators.slice(0, 4).map((email) => {
+                const initial = email.split('@')[0].charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={email}
+                    className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-900 bg-slate-800 text-slate-300 text-[9px] font-bold flex items-center justify-center"
+                    title={email}
+                  >
+                    {initial}
+                  </div>
+                );
+              })}
+              {idea.collaborators.length > 4 && (
+                <div className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-900 bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
+                  +{idea.collaborators.length - 4}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between pt-4 border-t border-white/5">
           <div className="flex items-center gap-2">
@@ -320,7 +450,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
               <p className="text-xs text-slate-500">{idea.date}</p>
             </div>
           </div>
-
+ 
           {!preview && (
             <div className="flex items-center">
               {idea.liveUrl ? (
@@ -331,7 +461,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
                   onClick={(event) => event.stopPropagation()}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all"
+                  className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all cursor-pointer"
                 >
                   <Globe className="w-4 h-4" />
                   Watch Live
@@ -413,7 +543,7 @@ const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLike }
             <Lightbulb className="w-4 h-4" />
             Innovation Gallery
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Explore Ideas</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Explore Projects</h2>
           <p className="text-slate-400 max-w-xl mx-auto">Browse through innovative projects submitted by our talented team members.</p>
         </motion.div>
 
@@ -421,7 +551,7 @@ const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLike }
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ideas, members, or tags..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search projects, members, or tags..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" />
             </div>
 
             <div className="flex gap-3 w-full md:w-auto">
@@ -576,7 +706,7 @@ const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
             <Plus className="w-4 h-4" />
             Share Your Vision
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Submit Your Idea</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Submit Your Project</h2>
           <p className="text-slate-400 max-w-xl mx-auto">Have a groundbreaking project? Share it with the FishiFox team and get feedback from our innovators.</p>
         </motion.div>
 
@@ -590,52 +720,62 @@ const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Short Description</label>
-                <textarea value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} rows={3} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.description ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all resize-none`} placeholder="Describe your project in a few sentences..." />
+                <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+                <textarea value={formData.description} onChange={(event) => setFormData({ ...formData, description: event.target.value })} rows={4} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.description ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="Explain what problem your project solves and how it works..." />
                 {errors.description && <p className="mt-1 text-sm text-red-400">{errors.description}</p>}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Live Site URL</label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input type="url" value={formData.liveUrl} onChange={(event) => setFormData({ ...formData, liveUrl: event.target.value })} className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border ${errors.liveUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="Optional if not deployed yet" />
-                  </div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Live Demo URL</label>
+                  <input type="url" value={formData.liveUrl} onChange={(event) => setFormData({ ...formData, liveUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.liveUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://example.com" />
                   {errors.liveUrl && <p className="mt-1 text-sm text-red-400">{errors.liveUrl}</p>}
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">GitHub Repository URL</label>
+                  <input type="url" value={formData.githubUrl} onChange={(event) => setFormData({ ...formData, githubUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/..." />
+                  {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
+                </div>
+              </div>
 
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
-                  <div className="relative">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <select value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })} className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all appearance-none">
-                      {CATEGORIES.filter((categoryName) => categoryName !== 'All').map((categoryName) => <option key={categoryName} value={categoryName}>{categoryName}</option>)}
-                    </select>
-                  </div>
+                  <select value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all">
+                    {CATEGORIES.filter((c) => c !== 'All').map((cat) => (
+                      <option key={cat} value={cat} className="bg-slate-900">
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Banner Image URL</label>
+                  <input type="url" value={formData.image} onChange={(event) => setFormData({ ...formData, image: event.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="https://images.unsplash.com..." />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Project Lifecycle Status</label>
+                  <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all">
+                    {STATUSES.map((status) => (
+                      <option key={status} value={status} className="bg-slate-900">
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Team Collaborators</label>
+                  <CollaboratorSelector selected={formData.collaborators || []} onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })} userEmail={userEmail} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">GitHub URL</label>
-                <input type="url" value={formData.githubUrl} onChange={(event) => setFormData({ ...formData, githubUrl: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.githubUrl ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="https://github.com/..." />
-                {errors.githubUrl && <p className="mt-1 text-sm text-red-400">{errors.githubUrl}</p>}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Thumbnail URL</label>
-                  <input type="url" value={formData.image} onChange={(event) => setFormData({ ...formData, image: event.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="https://images.unsplash.com/..." />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Member Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input type="text" value={formData.member} onChange={(event) => setFormData({ ...formData, member: event.target.value })} className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800/50 border ${errors.member ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="Your name" />
-                  </div>
-                  {errors.member && <p className="mt-1 text-sm text-red-400">{errors.member}</p>}
-                </div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Your Name</label>
+                <input type="text" value={formData.member} onChange={(event) => setFormData({ ...formData, member: event.target.value })} className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${errors.member ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} placeholder="Sarah Chen" />
+                {errors.member && <p className="mt-1 text-sm text-red-400">{errors.member}</p>}
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -648,7 +788,7 @@ const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
               <div className="flex gap-3 pt-4">
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all flex items-center justify-center gap-2">
                   <CheckCircle2 className="w-5 h-5" />
-                  Submit Idea
+                  Submit Project
                 </motion.button>
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="button" onClick={handleReset} className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-medium hover:bg-white/10 transition-all">Reset</motion.button>
               </div>
@@ -896,7 +1036,7 @@ const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
         <div className="mb-6">
           <h3 className="text-2xl font-bold text-white flex items-center gap-2">
             <Edit className="w-6 h-6 text-violet-400" />
-            Edit Idea Details
+            Edit Project Details
           </h3>
           <p className="text-sm text-slate-400 mt-1">Modify your project parameters below</p>
         </div>
@@ -942,6 +1082,20 @@ const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Project Lifecycle Status</label>
+              <select value={formData.status || 'Requirements Phase'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 transition-all">
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Team Collaborators</label>
+              <CollaboratorSelector selected={formData.collaborators || []} onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })} userEmail={userEmail} />
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">Member Name</label>
             <input type="text" value={formData.member} onChange={(e) => setFormData({ ...formData, member: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border ${errors.member ? 'border-red-500' : 'border-white/10'} text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all`} />
@@ -980,7 +1134,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, idea, onConfirm }) => {
           <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-400 animate-pulse">
             <Trash2 className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold text-white">Delete Idea</h3>
+          <h3 className="text-xl font-bold text-white">Delete Project</h3>
           <p className="text-sm text-slate-400 mt-2">
             Are you sure you want to delete <span className="text-white font-semibold">"{idea.title}"</span>? This action cannot be undone.
           </p>
@@ -1008,13 +1162,31 @@ const DeleteConfirmationModal = ({ isOpen, onClose, idea, onConfirm }) => {
   );
 };
 
-const About = () => {
+const About = ({ ideas = [] }) => {
   const features = [
     { icon: <Rocket className="w-6 h-6" />, title: 'Innovation First', desc: 'We prioritize groundbreaking ideas that push boundaries and solve real-world problems.' },
     { icon: <Users className="w-6 h-6" />, title: 'Collaborative Spirit', desc: 'Cross-functional teams work together to refine and launch ideas into reality.' },
     { icon: <Zap className="w-6 h-6" />, title: 'Rapid Prototyping', desc: 'From concept to MVP in record time with our streamlined development process.' },
     { icon: <Code2 className="w-6 h-6" />, title: 'Tech Excellence', desc: 'Leveraging cutting-edge technologies to build scalable, modern solutions.' },
   ];
+
+  const totalProjects = ideas.length;
+  const totalMembers = new Set(ideas.map(i => i.member?.trim()).filter(Boolean)).size;
+  const completedProjects = ideas.filter(i => i.liveUrl || i.url).length;
+  const successRate = ideas.length > 0 ? Math.round((completedProjects / ideas.length) * 100) : 85;
+
+  const categoryLaunchTimes = {
+    'AI': 2,
+    'Web Apps': 3,
+    'Healthcare': 6,
+    'Agriculture': 5,
+    'Finance': 4,
+    'Education': 3
+  };
+  const launchTimes = ideas.map(i => categoryLaunchTimes[i.category] || 3);
+  const avgLaunchTime = ideas.length > 0
+    ? (launchTimes.reduce((sum, val) => sum + val, 0) / ideas.length).toFixed(1)
+    : '3.0';
 
   return (
     <section id="about" className="py-24 relative overflow-hidden">
@@ -1028,8 +1200,8 @@ const About = () => {
               <Palette className="w-4 h-4" />
               Our Mission
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">What is FishiFox Idea Portal?</h2>
-            <p className="text-slate-400 leading-relaxed mb-6">The FishiFox Idea Portal is our internal innovation engine a dedicated space where team members can showcase their passion projects, startup concepts, and creative experiments.</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">What is FishiFox Project Portal?</h2>
+            <p className="text-slate-400 leading-relaxed mb-6">The FishiFox Project Portal is our internal innovation engine a dedicated space where team members can showcase their passion projects, startup concepts, and creative experiments.</p>
             <p className="text-slate-400 leading-relaxed mb-8">Whether it's an AI-powered agriculture tool, a healthcare disruptor, or the next big web app, every idea gets the visibility it deserves. We believe great innovations start with sharing.</p>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -1059,10 +1231,10 @@ const About = () => {
 
                 <div className="space-y-4">
                   {[
-                    { label: 'Active Projects', value: '12' },
-                    { label: 'Team Members', value: '8' },
-                    { label: 'Success Rate', value: '85%' },
-                    { label: 'Avg. Launch Time', value: '3 mo' },
+                    { label: 'Active Projects', value: totalProjects },
+                    { label: 'Team Members', value: totalMembers || 1 },
+                    { label: 'Success Rate', value: `${successRate}%` },
+                    { label: 'Avg. Launch Time', value: `${avgLaunchTime} mo` },
                   ].map((stat, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
                       <span className="text-slate-400">{stat.label}</span>
@@ -1098,7 +1270,7 @@ const Footer = () => (
           ))}
         </div>
 
-        <p className="text-sm text-slate-500">© 2026 FishiFox Idea Portal — By Minidu Oshan.</p>
+        <p className="text-sm text-slate-500">© 2026 FishiFox Project Portal — By Minidu Oshan.</p>
       </div>
     </div>
   </footer>
@@ -1205,7 +1377,7 @@ export default function HomePage() {
     try {
       const savedIdea = await updateIdea(updatedIdea.id, updatedIdea, userEmail);
       setIdeas((prev) => prev.map((item) => (item.id === savedIdea.id ? savedIdea : item)));
-      setToast({ message: 'Idea updated successfully!', type: 'success' });
+      setToast({ message: 'Project updated successfully!', type: 'success' });
     } catch {
       setIdeas((prev) => prev.map((item) => (item.id === updatedIdea.id ? updatedIdea : item)));
       setToast({ message: 'Saved locally, but backend was unavailable.', type: 'error' });
@@ -1216,7 +1388,7 @@ export default function HomePage() {
     try {
       await deleteIdea(id, userEmail);
       setIdeas((prev) => prev.filter((item) => item.id !== id));
-      setToast({ message: 'Idea deleted successfully!', type: 'success' });
+      setToast({ message: 'Project deleted successfully!', type: 'success' });
     } catch {
       setIdeas((prev) => prev.filter((item) => item.id !== id));
       setToast({ message: 'Deleted locally, but backend was unavailable.', type: 'error' });
@@ -1227,7 +1399,7 @@ export default function HomePage() {
     try {
       const savedIdea = await saveIdea(newIdea, userEmail);
       setIdeas((previousIdeas) => [savedIdea, ...previousIdeas]);
-      setToast({ message: 'Your idea has been published!', type: 'success' });
+      setToast({ message: 'Your project has been published!', type: 'success' });
       setTimeout(() => scrollToSection('ideas'), 500);
       return true;
     } catch {
@@ -1273,11 +1445,11 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-violet-500/30">
       <Navbar activeSection={activeSection} scrollToSection={scrollToSection} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} onLogout={handleLogout} />
-      <Hero scrollToSection={scrollToSection} />
+      <Hero scrollToSection={scrollToSection} ideas={ideas} />
       <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} onLike={handleLike} />
       <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} onLike={handleLike} />
       <SubmitForm onSubmit={handleSubmit} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} />
-      <About />
+      <About ideas={ideas} />
       <Footer />
       <BackToTop />
 

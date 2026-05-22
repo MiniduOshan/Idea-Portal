@@ -10,6 +10,8 @@ export const DEMO_IDEAS = [
     date: '2026-05-18',
     featured: true,
     trending: true,
+    status: 'In Progress (Working)',
+    collaborators: ['developer@fishifox.com', 'designer@fishifox.com']
   },
   {
     id: 2,
@@ -22,6 +24,8 @@ export const DEMO_IDEAS = [
     date: '2026-05-15',
     featured: true,
     trending: false,
+    status: 'Testing Phase',
+    collaborators: ['qa@fishifox.com']
   },
   {
     id: 3,
@@ -34,6 +38,8 @@ export const DEMO_IDEAS = [
     date: '2026-05-20',
     featured: false,
     trending: true,
+    status: 'Requirements Phase',
+    collaborators: ['architect@fishifox.com']
   },
   {
     id: 4,
@@ -46,6 +52,8 @@ export const DEMO_IDEAS = [
     date: '2026-05-12',
     featured: true,
     trending: false,
+    status: 'Completed (Launched)',
+    collaborators: ['lead-dev@fishifox.com', 'pm@fishifox.com']
   },
   {
     id: 5,
@@ -58,6 +66,8 @@ export const DEMO_IDEAS = [
     date: '2026-05-19',
     featured: false,
     trending: true,
+    status: 'In Progress (Working)',
+    collaborators: []
   },
   {
     id: 6,
@@ -70,10 +80,13 @@ export const DEMO_IDEAS = [
     date: '2026-05-10',
     featured: false,
     trending: false,
+    status: 'Completed (Launched)',
+    collaborators: []
   },
 ];
 
 export const CATEGORIES = ['All', 'AI', 'Agriculture', 'Healthcare', 'Education', 'Finance', 'Web Apps'];
+export const STATUSES = ['Requirements Phase', 'In Progress (Working)', 'Testing Phase', 'Completed (Launched)'];
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 export const IDEAS_API_URL = `${API_BASE_URL.replace(/\/$/, '')}/api/ideas`;
 
@@ -87,6 +100,8 @@ export const createEmptyIdea = () => ({
   category: 'AI',
   image: '',
   member: '',
+  status: 'Requirements Phase',
+  collaborators: [],
 });
 
 export const getIdeaLinks = (idea) => ({

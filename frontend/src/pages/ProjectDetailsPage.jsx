@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2, Heart } from 'lucide-react';
-import { loadIdeas, updateIdea, deleteIdea } from '../lib/ideasApi';
-import { getIdeaLinks, CATEGORIES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2, Heart, Users, Loader2 } from 'lucide-react';
+import { loadIdeas, updateIdea, deleteIdea, getRegisteredUsers } from '../lib/ideasApi';
+import { getIdeaLinks, CATEGORIES, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
+
+const STATUS_COLORS = {
+  'Requirements Phase': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  'In Progress (Working)': 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+  'Testing Phase': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  'Completed (Launched)': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+};
 
 const getDisplayName = (email) => {
   if (!email) return '';
@@ -27,22 +34,128 @@ const isCreator = (idea, userEmail) => {
   return false;
 };
 
+const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const allUsers = getRegisteredUsers();
+  
+  const availableUsers = allUsers.filter(
+    (email) => email.toLowerCase() !== userEmail?.toLowerCase()
+  );
+  
+  const filteredUsers = availableUsers.filter((email) =>
+    email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleUser = (email) => {
+    const emailLower = email.toLowerCase();
+    if (selected.includes(emailLower)) {
+      onChange(selected.filter((e) => e !== emailLower));
+    } else {
+      onChange([...selected, emailLower]);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-slate-800/50 border border-white/10 min-h-[46px] w-full items-center">
+        {selected.length === 0 && (
+          <span className="text-slate-500 text-sm ml-1.5">Select team collaborators...</span>
+        )}
+        {selected.map((email) => (
+          <span
+            key={email}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30"
+          >
+            {email}
+            <button
+              type="button"
+              onClick={() => toggleUser(email)}
+              className="text-violet-400 hover:text-violet-200 transition-colors focus:outline-none"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="ml-auto px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+        >
+          {isOpen ? 'Close' : 'Browse'}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-2 p-3 rounded-2xl border border-white/10 bg-slate-900 shadow-2xl backdrop-blur-xl z-20 space-y-2 max-h-60 overflow-y-auto">
+          <input
+            type="text"
+            placeholder="Search registered users..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500/50"
+          />
+          <div className="space-y-1">
+            {filteredUsers.length === 0 ? (
+              <div className="text-xs text-slate-500 p-2 text-center">No registered users found</div>
+            ) : (
+              filteredUsers.map((email) => {
+                const isChecked = selected.includes(email.toLowerCase());
+                return (
+                  <button
+                    key={email}
+                    type="button"
+                    onClick={() => toggleUser(email)}
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 text-left transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm text-slate-300 truncate pr-2">{email}</span>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${isChecked ? 'bg-violet-500 border-violet-500 text-white' : 'border-white/20 text-transparent'}`}>
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const categoryColors = {
+    AI: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    Agriculture: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    Healthcare: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+    Education: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    Finance: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    'Web Apps': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+  };
+
   const likes = idea.likes || [];
   const hasLiked = userEmail && likes.includes(userEmail.toLowerCase());
 
   return (
     <motion.div layout onClick={() => onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 cursor-pointer">
       <div className="relative h-48 overflow-hidden bg-slate-800">
-        <img src={idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80'} alt={idea.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+        {!imageLoaded && !imageError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>}
+        <img src={imageError ? 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80' : (idea.image || 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80')} alt={idea.title} onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
         {idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold flex items-center gap-1 shadow-lg"><TrendingUp className="w-3 h-3" />Trending</div>}
         {idea.featured && !idea.trending && <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-violet-500/90 text-white text-xs font-bold backdrop-blur-sm">Featured</div>}
+        {!idea.liveUrl && <div className="absolute bottom-3 left-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">Not deployed yet</div>}
       </div>
 
       <div className="p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="px-2.5 py-1 rounded-lg text-xs font-medium border bg-violet-500/20 text-violet-300 border-violet-500/30">{idea.category}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${categoryColors[idea.category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.category}</span>
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${STATUS_COLORS[idea.status] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.status || 'Requirements Phase'}</span>
+          </div>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -50,7 +163,7 @@ const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
               e.stopPropagation();
               onLike?.(idea);
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
           >
             <Heart className={`w-3.5 h-3.5 transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400 group-hover:text-rose-400'}`} />
             <span>{likes.length}</span>
@@ -60,9 +173,34 @@ const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
         <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-violet-300 transition-colors">{idea.title || 'Untitled Project'}</h3>
         <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{idea.description || 'No description provided...'}</p>
 
+        {idea.collaborators && idea.collaborators.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs text-slate-500 font-medium">Team:</span>
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {idea.collaborators.slice(0, 4).map((email) => {
+                const initial = email.split('@')[0].charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={email}
+                    className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-900 bg-slate-800 text-slate-300 text-[9px] font-bold flex items-center justify-center"
+                    title={email}
+                  >
+                    {initial}
+                  </div>
+                );
+              })}
+              {idea.collaborators.length > 4 && (
+                <div className="inline-block h-5 w-5 rounded-full ring-1 ring-slate-900 bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
+                  +{idea.collaborators.length - 4}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-4 border-t border-white/5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">{idea.member ? idea.member.charAt(0).toUpperCase() : '?'}</div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white uppercase">{idea.member ? idea.member.charAt(0) : '?'}</div>
             <div>
               <p className="text-sm font-medium text-slate-300">{idea.member || 'Anonymous'}</p>
               <p className="text-xs text-slate-500">{idea.date}</p>
@@ -109,7 +247,7 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
+const EditModal = ({ isOpen, onClose, idea, onUpdate, userEmail }) => {
   const [formData, setFormData] = useState(createEmptyIdea());
   const [errors, setErrors] = useState({});
 
@@ -201,6 +339,20 @@ const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Thumbnail URL</label>
               <input type="url" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/50 transition-all" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Project Lifecycle Status</label>
+              <select value={formData.status || 'Requirements Phase'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-slate-800/50 border border-white/10 text-white focus:outline-none focus:border-violet-500/50 transition-all">
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Team Collaborators</label>
+              <CollaboratorSelector selected={formData.collaborators || []} onChange={(collabs) => setFormData({ ...formData, collaborators: collabs })} userEmail={userEmail} />
             </div>
           </div>
 
@@ -413,6 +565,7 @@ export default function ProjectDetailsPage() {
             <div className="space-y-6">
               <div className="flex flex-wrap gap-2">
                 <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">{idea.category}</span>
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_COLORS[idea.status] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.status || 'Requirements Phase'}</span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">{deploymentStatus}</span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">{linkCount} links</span>
                 {idea.featured && <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-300">Featured</span>}
@@ -493,12 +646,20 @@ export default function ProjectDetailsPage() {
                   {[
                     { label: 'Owner', value: idea.member || 'Anonymous' },
                     { label: 'Date', value: idea.date || '-' },
-                    { label: 'Status', value: deploymentStatus },
+                    { label: 'Status', value: idea.status || 'Requirements Phase', isStatus: true },
                     { label: 'Likes', value: String(likes.length) },
                   ].map((stat) => (
-                    <div key={stat.label} className="bg-slate-950/95 p-4">
+                    <div key={stat.label} className="bg-slate-950/95 p-4 flex flex-col justify-between">
                       <div className="text-xs uppercase tracking-[0.25em] text-slate-500">{stat.label}</div>
-                      <div className="mt-2 text-sm font-semibold text-white">{stat.value}</div>
+                      <div className="mt-2 text-sm font-semibold text-white">
+                        {stat.isStatus ? (
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_COLORS[stat.value] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>
+                            {stat.value}
+                          </span>
+                        ) : (
+                          stat.value
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -509,23 +670,74 @@ export default function ProjectDetailsPage() {
 
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.28em] text-cyan-300">
-                <Info className="h-4 w-4" />
-                Overview
-              </div>
-              <p className="text-sm leading-relaxed text-slate-300">This is the project detail view for {idea.title || 'this project'}. It keeps your portal theme, but presents the project like a dedicated repository page with quick actions, deployment status, and linked resources.</p>
+            <div className="space-y-6">
+              <div className="space-y-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.28em] text-cyan-300">
+                  <Info className="h-4 w-4" />
+                  Overview
+                </div>
+                <p className="text-sm leading-relaxed text-slate-300">This is the project detail view for {idea.title || 'this project'}. It keeps your portal theme, but presents the project like a dedicated repository page with quick actions, deployment status, and linked resources.</p>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  { label: 'Deployment', value: links.liveUrl ? 'Live' : 'Pending' },
-                  { label: 'Repository', value: links.githubUrl ? 'Connected' : 'Missing' },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                    <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</div>
-                    <div className="mt-2 text-sm font-semibold text-white">{item.value}</div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    { label: 'Deployment', value: links.liveUrl ? 'Live' : 'Pending' },
+                    { label: 'Repository', value: links.githubUrl ? 'Connected' : 'Missing' },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</div>
+                      <div className="mt-2 text-sm font-semibold text-white">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Collaborating Team */}
+              <div className="space-y-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.28em] text-violet-300">
+                  <Users className="h-4 w-4" />
+                  Collaborating Team
+                </div>
+                <div className="space-y-3">
+                  {/* Owner / Creator */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 border border-white/5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+                        {idea.member ? idea.member.charAt(0) : (idea.creatorEmail ? idea.creatorEmail.charAt(0) : '?')}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-white truncate">{idea.member || getDisplayName(idea.creatorEmail) || 'Project Creator'}</div>
+                        <div className="text-xs text-slate-400 truncate">{idea.creatorEmail || 'Creator'}</div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                      Creator
+                    </span>
                   </div>
-                ))}
+
+                  {/* Collaborators */}
+                  {idea.collaborators && idea.collaborators.length > 0 ? (
+                    idea.collaborators.map((email) => (
+                      <div key={email} className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-white/5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300 uppercase shrink-0">
+                            {email.split('@')[0].charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-200 truncate">{getDisplayName(email)}</div>
+                            <div className="text-xs text-slate-500 truncate">{email}</div>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 text-slate-400 border border-white/5 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                          Collaborator
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 rounded-2xl border border-dashed border-white/10 text-center text-sm text-slate-500">
+                      No additional collaborators assigned to this project yet.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -617,7 +829,7 @@ export default function ProjectDetailsPage() {
 
       <AnimatePresence>
         {isEditOpen && (
-          <EditModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} idea={idea} onUpdate={handleUpdateIdea} />
+          <EditModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} idea={idea} onUpdate={handleUpdateIdea} userEmail={userEmail} />
         )}
       </AnimatePresence>
 

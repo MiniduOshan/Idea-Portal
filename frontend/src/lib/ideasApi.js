@@ -10,7 +10,8 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
-  doc
+  doc,
+  setDoc
 } from 'firebase/firestore';
 
 const MOCK_IDEAS_KEY = 'fishifox_ideas';
@@ -61,16 +62,48 @@ export async function loadIdeas() {
     try {
       const querySnapshot = await getDocs(collection(db, 'ideas'));
       const ideas = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
         ideas.push({
           ...data,
-          id: doc.id
+          id: docSnap.id
         });
       });
 
-      if (ideas.length === 0) {
-        return DEMO_IDEAS;
+      // Populate any missing DEMO_IDEAS in Firestore
+      const missingDemoIdeas = DEMO_IDEAS.filter(
+        demoIdea => !ideas.some(item => String(item.id) === String(demoIdea.id))
+      );
+
+      if (missingDemoIdeas.length > 0) {
+        console.log(`Found ${missingDemoIdeas.length} missing demo ideas. Populating...`);
+        for (const demoIdea of missingDemoIdeas) {
+          try {
+            const docRef = doc(db, 'ideas', String(demoIdea.id));
+            const ideaData = {
+              title: demoIdea.title || '',
+              description: demoIdea.description || '',
+              url: demoIdea.liveUrl || demoIdea.url || '',
+              liveUrl: demoIdea.liveUrl || demoIdea.url || '',
+              githubUrl: demoIdea.githubUrl || '',
+              category: demoIdea.category || 'AI',
+              image: demoIdea.image || '',
+              member: demoIdea.member || 'Anonymous',
+              date: demoIdea.date || new Date().toISOString().split('T')[0],
+              featured: demoIdea.featured || false,
+              trending: demoIdea.trending || false,
+              status: demoIdea.status || 'Requirements Phase',
+              collaborators: demoIdea.collaborators || [],
+              likes: demoIdea.likes || [],
+              creatorEmail: demoIdea.creatorEmail || 'owner@fishifox.com',
+              createdAt: demoIdea.createdAt || new Date(demoIdea.date || Date.now()).toISOString()
+            };
+            await setDoc(docRef, ideaData);
+            ideas.push({ ...ideaData, id: String(demoIdea.id) });
+          } catch (populateError) {
+            console.error(`Failed to populate demo idea ${demoIdea.id}:`, populateError);
+          }
+        }
       }
 
       // Sort ideas by date descending
@@ -102,6 +135,8 @@ export async function saveIdea(idea, userEmail) {
     featured: false,
     trending: false,
     likes: idea.likes || [],
+    status: idea.status || 'Requirements Phase',
+    collaborators: idea.collaborators || [],
     creatorEmail: userEmail ? userEmail.toLowerCase() : '',
     createdAt: new Date().toISOString()
   };
@@ -142,20 +177,32 @@ export async function updateIdea(id, idea, userEmail) {
     creatorEmail: idea.creatorEmail ? idea.creatorEmail.toLowerCase() : (userEmail ? userEmail.toLowerCase() : ''),
     likes: idea.likes || [],
     featured: idea.featured || false,
-    trending: idea.trending || false
+    trending: idea.trending || false,
+    status: idea.status || 'Requirements Phase',
+    collaborators: idea.collaborators || []
   };
 
   if (isFirebaseConfigured) {
     try {
-      const docRef = doc(db, 'ideas', id);
-      await updateDoc(docRef, updatedData);
+      const docRef = doc(db, 'ideas', String(id));
+      // Use setDoc with merge so it works even if the document doesn't exist yet
+      await setDoc(docRef, updatedData, { merge: true });
       return {
         ...idea,
         ...updatedData,
         id
       };
     } catch (error) {
-      console.error('Firestore updateIdea failed:', error);
+      console.error('Firestore updateIdea failed, falling back to localStorage:', error);
+      // Fall back to localStorage so likes and edits are not lost
+      const mockIdeas = getMockIdeas();
+      const index = mockIdeas.findIndex(item => String(item.id) === String(id));
+      if (index !== -1) {
+        const updatedIdea = { ...mockIdeas[index], ...updatedData, id };
+        mockIdeas[index] = updatedIdea;
+        saveMockIdeas(mockIdeas);
+        return updatedIdea;
+      }
       throw error;
     }
   } else {
@@ -275,5 +322,26 @@ export async function loginUser(email, password) {
       throw new Error('Invalid email or password');
     }
     return { message: 'Login successful', email: user.email };
+  }
+}
+
+export function getRegisteredUsers() {
+  try {
+    const mockUsers = getMockUsers();
+    const emails = new Set(mockUsers.map(u => u.email.toLowerCase()));
+    
+    // Also add creators from stored mock ideas
+    const mockIdeas = getMockIdeas();
+    mockIdeas.forEach(idea => {
+      if (idea.creatorEmail) emails.add(idea.creatorEmail.toLowerCase());
+      if (idea.collaborators) {
+        idea.collaborators.forEach(c => emails.add(c.toLowerCase()));
+      }
+    });
+
+    return Array.from(emails);
+  } catch (e) {
+    console.error('getRegisteredUsers failed:', e);
+    return [];
   }
 }
