@@ -530,7 +530,6 @@ export default function ProjectDetailsPage() {
     return <div className="min-h-screen bg-slate-950 text-white" />;
   }
 
-  const likes = idea.likes || [];
 
   const links = getIdeaLinks(idea);
   const linkCount = [links.liveUrl, links.githubUrl].filter(Boolean).length;
@@ -636,10 +635,9 @@ export default function ProjectDetailsPage() {
                   {[
                     { label: 'Owner', value: getCreatorName(idea) },
                     { label: 'Date', value: idea.date || '-' },
-                    { label: 'Status', value: idea.status || 'Requirements Phase', isStatus: true },
-                    { label: 'Likes', value: String(likes.length) },
+                    { label: 'Status', value: idea.status || 'Requirements Phase', isStatus: true, className: 'col-span-2' },
                   ].map((stat) => (
-                    <div key={stat.label} className="bg-slate-950/95 p-4 flex flex-col justify-between">
+                    <div key={stat.label} className={`bg-slate-950/95 p-4 flex flex-col justify-between ${stat.className || ''}`}>
                       <div className="text-xs uppercase tracking-[0.25em] text-slate-500">{stat.label}</div>
                       <div className="mt-2 text-sm font-semibold text-white">
                         {stat.isStatus ? (
