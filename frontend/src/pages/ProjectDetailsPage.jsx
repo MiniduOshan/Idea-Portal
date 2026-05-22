@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2, Heart, Users, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronUp, Code2, Globe, GitBranch, Info, Sparkles, TrendingUp, Edit, Trash2, X, CheckCircle2, Users, Loader2 } from 'lucide-react';
 import { loadIdeas, updateIdea, deleteIdea, getRegisteredUsers } from '../lib/ideasApi';
 import { getIdeaLinks, CATEGORIES, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
 
@@ -123,7 +123,7 @@ const CollaboratorSelector = ({ selected = [], onChange, userEmail }) => {
   );
 };
 
-const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
+const IdeaCard = ({ idea, onOpenDetails, userEmail }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -135,9 +135,6 @@ const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
     Finance: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     'Web Apps': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
   };
-
-  const likes = idea.likes || [];
-  const hasLiked = userEmail && likes.includes(userEmail.toLowerCase());
 
   return (
     <motion.div layout onClick={() => onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 cursor-pointer">
@@ -156,18 +153,6 @@ const IdeaCard = ({ idea, onOpenDetails, userEmail, onLike }) => {
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${categoryColors[idea.category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.category}</span>
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${STATUS_COLORS[idea.status] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.status || 'Requirements Phase'}</span>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onLike?.(idea);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
-          >
-            <Heart className={`w-3.5 h-3.5 transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400 group-hover:text-rose-400'}`} />
-            <span>{likes.length}</span>
-          </motion.button>
         </div>
 
         <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-violet-300 transition-colors">{idea.title || 'Untitled Project'}</h3>
@@ -501,35 +486,6 @@ export default function ProjectDetailsPage() {
   }
 
   const likes = idea.likes || [];
-  const hasLiked = userEmail && likes.includes(userEmail.toLowerCase());
-
-  const handleLike = async (ideaToLike) => {
-    if (!userEmail) {
-      setToast({ message: 'Please login to like ideas', type: 'error' });
-      return;
-    }
-
-    const email = userEmail.toLowerCase();
-    const currentLikes = ideaToLike.likes || [];
-    const hasLikedIdea = currentLikes.includes(email);
-
-    const updatedLikes = hasLikedIdea
-      ? currentLikes.filter((e) => e !== email)
-      : [...currentLikes, email];
-
-    const updatedIdea = {
-      ...ideaToLike,
-      likes: updatedLikes,
-    };
-
-    setIdeas((prev) => prev.map((item) => (item.id === ideaToLike.id ? updatedIdea : item)));
-
-    try {
-      await updateIdea(ideaToLike.id, updatedIdea, userEmail);
-    } catch (error) {
-      console.error('Failed to sync like with backend:', error);
-    }
-  };
 
   const links = getIdeaLinks(idea);
   const linkCount = [links.liveUrl, links.githubUrl].filter(Boolean).length;
@@ -599,19 +555,7 @@ export default function ProjectDetailsPage() {
                   </a>
                 )}
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleLike(idea)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition-all cursor-pointer ${
-                    hasLiked
-                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
-                      : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  <Heart className={`h-4 w-4 transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}`} />
-                  <span>{hasLiked ? 'Liked' : 'Like'} ({likes.length})</span>
-                </motion.button>
+
 
                 {isCreator(idea, userEmail) && (
                   <>
@@ -817,7 +761,7 @@ export default function ProjectDetailsPage() {
                 Related Projects
               </div>
               <div className="grid gap-6 md:grid-cols-3">
-                {relatedIdeas.map((relatedIdea) => <IdeaCard key={relatedIdea.id} idea={relatedIdea} userEmail={userEmail} onLike={handleLike} onOpenDetails={() => navigate(`/ideas/${relatedIdea.id}`, { state: { ideas } })} />)}
+                {relatedIdeas.map((relatedIdea) => <IdeaCard key={relatedIdea.id} idea={relatedIdea} userEmail={userEmail} onOpenDetails={() => navigate(`/ideas/${relatedIdea.id}`, { state: { ideas } })} />)}
               </div>
             </div>
           )}

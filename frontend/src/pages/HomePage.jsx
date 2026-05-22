@@ -25,7 +25,6 @@ import {
   Edit,
   Trash2,
   Lock,
-  Heart,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CATEGORIES, DEMO_IDEAS, STATUSES, createEmptyIdea, isValidUrl } from '../lib/portalData';
@@ -331,7 +330,7 @@ const Toast = ({ message, type, onClose }) => {
     </motion.div>
   );
 };
-const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onDelete, onLike }) => {
+const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
  
@@ -350,9 +349,6 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
     'Testing Phase': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     'Completed (Launched)': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
   };
- 
-  const likes = idea.likes || [];
-  const hasLiked = userEmail && likes.includes(userEmail.toLowerCase());
  
   return (
     <motion.div layout onClick={() => !preview && onOpenDetails?.(idea)} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -5 }} className={`group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-sm hover:border-white/20 transition-all duration-300 ${preview ? 'pointer-events-none' : 'cursor-pointer'}`}>
@@ -397,20 +393,6 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${categoryColors[idea.category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.category}</span>
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[idea.status] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}`}>{idea.status || 'Requirements Phase'}</span>
           </div>
-          {!preview && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLike?.(idea);
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
-            >
-              <Heart className={`w-3.5 h-3.5 transition-colors ${hasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400 group-hover:text-rose-400'}`} />
-              <span>{likes.length}</span>
-            </motion.button>
-          )}
         </div>
  
         <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-violet-300 transition-colors">{idea.title || 'Untitled Project'}</h3>
@@ -478,7 +460,7 @@ const IdeaCard = ({ idea, preview = false, onOpenDetails, userEmail, onEdit, onD
   );
 };
 
-const FeaturedIdeas = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLike }) => {
+const FeaturedIdeas = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const featured = ideas.filter((idea) => idea.featured || idea.trending).slice(0, 3);
   if (featured.length === 0) return null;
 
@@ -499,7 +481,7 @@ const FeaturedIdeas = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLi
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map((idea, index) => (
             <motion.div key={idea.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
-              <IdeaCard idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} onLike={onLike} />
+              <IdeaCard idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} />
             </motion.div>
           ))}
         </div>
@@ -508,7 +490,7 @@ const FeaturedIdeas = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLi
   );
 };
 
-const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLike }) => {
+const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete }) => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('newest');
@@ -592,7 +574,7 @@ const IdeasGrid = ({ ideas, onOpenDetails, userEmail, onEdit, onDelete, onLike }
         ) : filtered.length > 0 ? (
           <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {filtered.map((idea) => <IdeaCard key={idea.id} idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} onLike={onLike} />)}
+              {filtered.map((idea) => <IdeaCard key={idea.id} idea={idea} onOpenDetails={onOpenDetails} userEmail={userEmail} onEdit={onEdit} onDelete={onDelete} />)}
             </AnimatePresence>
           </motion.div>
         ) : (
@@ -1411,34 +1393,6 @@ export default function HomePage() {
     }
   };
 
-  const handleLike = async (idea) => {
-    if (!userEmail) {
-      setLoginOpen(true);
-      setToast({ message: 'Please login to like ideas', type: 'error' });
-      return;
-    }
-
-    const email = userEmail.toLowerCase();
-    const likes = idea.likes || [];
-    const hasLiked = likes.includes(email);
-    const updatedLikes = hasLiked
-      ? likes.filter((e) => e !== email)
-      : [...likes, email];
-
-    const updatedIdea = {
-      ...idea,
-      likes: updatedLikes,
-    };
-
-    setIdeas((prev) => prev.map((item) => (item.id === idea.id ? updatedIdea : item)));
-
-    try {
-      await updateIdea(idea.id, updatedIdea, userEmail);
-    } catch (error) {
-      console.error('Failed to sync like with backend:', error);
-    }
-  };
-
   const handleOpenDetails = (idea) => {
     navigate(`/ideas/${idea.id}`, { state: { idea, ideas } });
   };
@@ -1447,8 +1401,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-violet-500/30">
       <Navbar activeSection={activeSection} scrollToSection={scrollToSection} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} onLogout={handleLogout} />
       <Hero scrollToSection={scrollToSection} ideas={ideas} />
-      <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} onLike={handleLike} />
-      <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} onLike={handleLike} />
+      <FeaturedIdeas ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
+      <IdeasGrid ideas={ideas} onOpenDetails={handleOpenDetails} userEmail={userEmail} onEdit={handleEditClick} onDelete={handleDeleteClick} />
       <SubmitForm onSubmit={handleSubmit} userEmail={userEmail} onLoginClick={() => setLoginOpen(true)} />
       <About ideas={ideas} />
       <Footer />

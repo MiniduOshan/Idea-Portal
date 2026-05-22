@@ -16,7 +16,22 @@ import {
 const MOCK_IDEAS_KEY = 'fishifox_ideas';
 const MOCK_USERS_KEY = 'fishifox_users';
 
+
+
 // --- LocalStorage Fallback Helpers ---
+
+function mergeWithDemoIdeas(ideas) {
+  const existingIdeas = Array.isArray(ideas) ? ideas : [];
+  if (existingIdeas.length === 0) {
+    return [...DEMO_IDEAS];
+  }
+
+  const missingDemoIdeas = DEMO_IDEAS.filter(
+    (demoIdea) => !existingIdeas.some((idea) => String(idea.id) === String(demoIdea.id))
+  );
+
+  return [...existingIdeas, ...missingDemoIdeas];
+}
 
 function getMockIdeas() {
   const local = localStorage.getItem(MOCK_IDEAS_KEY);
@@ -25,7 +40,12 @@ function getMockIdeas() {
     return DEMO_IDEAS;
   }
   try {
-    return JSON.parse(local);
+    const parsedIdeas = JSON.parse(local);
+    const normalizedIdeas = mergeWithDemoIdeas(parsedIdeas);
+    if (normalizedIdeas.length !== (Array.isArray(parsedIdeas) ? parsedIdeas.length : 0)) {
+      saveMockIdeas(normalizedIdeas);
+    }
+    return normalizedIdeas;
   } catch {
     return DEMO_IDEAS;
   }
@@ -70,40 +90,40 @@ export async function loadIdeas() {
         });
       });
 
-      // Populate any missing DEMO_IDEAS in Firestore
+      // Add any missing DEMO_IDEAS locally if they don't exist in Firestore.
+      // We do NOT attempt writing them to Firestore to avoid 'Missing or insufficient permissions' errors
+      // if the production Firestore rules restrict write permissions for anonymous/standard clients.
       const missingDemoIdeas = DEMO_IDEAS.filter(
         demoIdea => !ideas.some(item => String(item.id) === String(demoIdea.id))
       );
 
       if (missingDemoIdeas.length > 0) {
-        console.log(`Found ${missingDemoIdeas.length} missing demo ideas. Populating...`);
         for (const demoIdea of missingDemoIdeas) {
-          try {
-            const docRef = doc(db, 'ideas', String(demoIdea.id));
-            const ideaData = {
-              title: demoIdea.title || '',
-              description: demoIdea.description || '',
-              url: demoIdea.liveUrl || demoIdea.url || '',
-              liveUrl: demoIdea.liveUrl || demoIdea.url || '',
-              githubUrl: demoIdea.githubUrl || '',
-              category: demoIdea.category || 'AI',
-              image: demoIdea.image || '',
-              member: demoIdea.member || 'Anonymous',
-              date: demoIdea.date || new Date().toISOString().split('T')[0],
-              featured: demoIdea.featured || false,
-              trending: demoIdea.trending || false,
-              status: demoIdea.status || 'Requirements Phase',
-              collaborators: demoIdea.collaborators || [],
-              likes: demoIdea.likes || [],
-              creatorEmail: demoIdea.creatorEmail || 'owner@fishifox.com',
-              createdAt: demoIdea.createdAt || new Date(demoIdea.date || Date.now()).toISOString()
-            };
-            await setDoc(docRef, ideaData);
-            ideas.push({ ...ideaData, id: String(demoIdea.id) });
-          } catch (populateError) {
-            console.error(`Failed to populate demo idea ${demoIdea.id}:`, populateError);
-          }
+          const ideaData = {
+            title: demoIdea.title || '',
+            description: demoIdea.description || '',
+            url: demoIdea.liveUrl || demoIdea.url || '',
+            liveUrl: demoIdea.liveUrl || demoIdea.url || '',
+            githubUrl: demoIdea.githubUrl || '',
+            category: demoIdea.category || 'AI',
+            image: demoIdea.image || '',
+            member: demoIdea.member || 'Anonymous',
+            date: demoIdea.date || new Date().toISOString().split('T')[0],
+            featured: demoIdea.featured || false,
+            trending: demoIdea.trending || false,
+            status: demoIdea.status || 'Requirements Phase',
+            collaborators: demoIdea.collaborators || [],
+            likes: demoIdea.likes || [],
+            creatorEmail: demoIdea.creatorEmail || 'owner@fishifox.com',
+            createdAt: demoIdea.createdAt || new Date(demoIdea.date || Date.now()).toISOString(),
+            id: String(demoIdea.id)
+          };
+          ideas.push(ideaData);
         }
+      }
+
+      if (ideas.length === 0) {
+        return [...DEMO_IDEAS];
       }
 
       // Sort ideas by date descending
