@@ -8,7 +8,6 @@ import {
   collection,
   addDoc,
   getDocs,
-  updateDoc,
   deleteDoc,
   doc,
   setDoc
@@ -223,7 +222,7 @@ export async function updateIdea(id, idea, userEmail) {
   }
 }
 
-export async function deleteIdea(id, userEmail) {
+export async function deleteIdea(id) {
   if (isFirebaseConfigured) {
     try {
       const docRef = doc(db, 'ideas', id);
@@ -260,7 +259,7 @@ export async function registerUser(email, password) {
         const mockUsers = getMockUsers();
         const exists = mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
         if (exists) {
-          throw new Error('This email is already registered.');
+          throw new Error('This email is already registered.', { cause: error });
         }
         mockUsers.push({ email: email.toLowerCase(), password });
         saveMockUsers(mockUsers);
@@ -274,7 +273,7 @@ export async function registerUser(email, password) {
       } else if (error.code === 'auth/invalid-email') {
         message = 'Invalid email address.';
       }
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     }
   } else {
     const mockUsers = getMockUsers();
@@ -304,17 +303,17 @@ export async function loginUser(email, password) {
         const mockUsers = getMockUsers();
         const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
         if (!user) {
-          throw new Error('Invalid email or password');
+          throw new Error('Invalid email or password', { cause: error });
         }
         return { message: 'Login successful (local mode)', email: user.email };
       }
-      let message = 'Invalid email or password';
+      let message;
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         message = 'Invalid email or password';
       } else {
         message = error.message;
       }
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     }
   } else {
     const mockUsers = getMockUsers();

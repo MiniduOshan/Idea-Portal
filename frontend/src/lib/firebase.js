@@ -17,7 +17,6 @@ export const isFirebaseConfigured = !!(
   apiKey !== 'YOUR_API_KEY'
 );
 
-let app = null;
 let auth = null;
 let db = null;
 
@@ -31,7 +30,7 @@ if (isFirebaseConfigured) {
     appId,
   };
   try {
-    app = initializeApp(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
   } catch (error) {

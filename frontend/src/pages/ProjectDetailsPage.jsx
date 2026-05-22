@@ -253,6 +253,7 @@ const EditModal = ({ isOpen, onClose, idea, onUpdate, userEmail }) => {
 
   useEffect(() => {
     if (idea) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(idea);
       setErrors({});
     }
@@ -428,7 +429,7 @@ export default function ProjectDetailsPage() {
   const location = useLocation();
   const [ideas, setIdeas] = useState(location.state?.ideas || []);
 
-  const [userEmail, setUserEmail] = useState(localStorage.getItem('fishifox_user') || '');
+  const [userEmail] = useState(localStorage.getItem('fishifox_user') || '');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -446,7 +447,7 @@ export default function ProjectDetailsPage() {
 
   const handleDeleteConfirm = async (id) => {
     try {
-      await deleteIdea(id, userEmail);
+      await deleteIdea(id);
       setToast({ message: 'Idea deleted successfully!', type: 'success' });
       setTimeout(() => {
         navigate('/');

@@ -6,7 +6,6 @@ import {
   Plus,
   Globe,
   User,
-  Tag,
   Sparkles,
   TrendingUp,
   X,
@@ -618,6 +617,7 @@ const SubmitForm = ({ onSubmit, userEmail, onLoginClick }) => {
 
   useEffect(() => {
     if (userEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(prev => ({
         ...prev,
         member: prev.member || getDisplayName(userEmail)
@@ -987,12 +987,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, setToast }) => {
   );
 };
 
-const EditModal = ({ isOpen, onClose, idea, onUpdate }) => {
+const EditModal = ({ isOpen, onClose, idea, onUpdate, userEmail }) => {
   const [formData, setFormData] = useState(createEmptyIdea());
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (idea) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(idea);
       setErrors({});
     }
@@ -1386,7 +1387,7 @@ export default function HomePage() {
 
   const handleDeleteConfirm = async (id) => {
     try {
-      await deleteIdea(id, userEmail);
+      await deleteIdea(id);
       setIdeas((prev) => prev.filter((item) => item.id !== id));
       setToast({ message: 'Project deleted successfully!', type: 'success' });
     } catch {
@@ -1465,7 +1466,7 @@ export default function HomePage() {
 
       <AnimatePresence>
         {editingIdea && (
-          <EditModal isOpen={!!editingIdea} onClose={() => setEditingIdea(null)} idea={editingIdea} onUpdate={handleUpdateIdea} />
+          <EditModal isOpen={!!editingIdea} onClose={() => setEditingIdea(null)} idea={editingIdea} onUpdate={handleUpdateIdea} userEmail={userEmail} />
         )}
       </AnimatePresence>
 
