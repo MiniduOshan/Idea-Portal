@@ -2,11 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /ideas/{ideaId} {
-      // Anyone can read projects/ideas
-      allow read: if true;
-      
-      // Only authenticated users can write/update/delete projects/ideas
-      allow write: if request.auth != null;
+      // Anyone can read and write projects/ideas
+      allow read, write: if true;
     }
   }
 }

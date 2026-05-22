@@ -66,6 +66,7 @@ export async function loadIdeas() {
         const data = docSnap.data();
         ideas.push({
           ...data,
+          likes: Array.isArray(data.likes) ? data.likes : [],
           id: docSnap.id
         });
       });
@@ -134,7 +135,7 @@ export async function saveIdea(idea, userEmail) {
     date: new Date().toISOString().split('T')[0],
     featured: false,
     trending: false,
-    likes: idea.likes || [],
+    likes: Array.isArray(idea.likes) ? idea.likes : [],
     status: idea.status || 'Requirements Phase',
     collaborators: idea.collaborators || [],
     creatorEmail: userEmail ? userEmail.toLowerCase() : '',
@@ -175,7 +176,7 @@ export async function updateIdea(id, idea, userEmail) {
     image: idea.image || '',
     member: idea.member,
     creatorEmail: idea.creatorEmail ? idea.creatorEmail.toLowerCase() : (userEmail ? userEmail.toLowerCase() : ''),
-    likes: idea.likes || [],
+    likes: Array.isArray(idea.likes) ? idea.likes : [],
     featured: idea.featured || false,
     trending: idea.trending || false,
     status: idea.status || 'Requirements Phase',
